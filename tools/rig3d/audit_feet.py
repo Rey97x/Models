@@ -3,8 +3,8 @@
 Independent foot-contact audit of a rigged + animated GLB.  Reads ONLY the GLB (plus skeleton.json for the sole
 geometry), evaluates every clip like a glTF player (LINEAR / slerp, also between keys) and measures:
 
-  * sliding   : for each sole point (heel, ball, toe tip) and each interval in which it touches the ground,
-                the horizontal distance it travels while in contact.  In-place clips are judged after applying
+  * sliding   : for each sole point (heel, ball, toe tip) and each contact (consecutive 30 fps keys on which it lies
+                on the ground), the horizontal distance it travels, sampled also between the keys.  In-place clips are judged after applying
                 the root motion they declare in `extras` (speed along +Z, turnRate about +Y).
   * ground    : lowest sole point (penetration) per clip
   * knees     : interior knee angle range, largest change per frame, leg stretch ratio
@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from glb import GLB, q_mul, q_rotate, q_axis_angle
 
-CONTACT_Y = 0.0025     # a sole point this close to the ground counts as touching
+CONTACT_Y = 0.0008     # a sole point this close to the ground (about 1.5 mm on a real person) counts as touching
 SLIDE_TOL = 0.0005     # CONTRACT.md
 PEN_TOL = -0.001
 STRETCH_TOL = 0.995
@@ -119,12 +119,15 @@ def main():
     for s, S in (("L", "Left"), ("R", "Right")):
         ball = pts[S + "ToeBase"].copy(); ball[1] = 0.0
         tip = pts[S + "Toe_End"].copy(); tip[1] = 0.0
-        sole[s] = [("heel", S + "Foot", pts[S + "Heel"]), ("ball", S + "Foot", ball), ("toe", S + "ToeBase", tip)]
+        # the ball point belongs to the toe segment: during heel-off the foot pitches about the ToeBase joint
+        # while the toes stay flat, so the sole under that joint is carried by ToeBase, not by Foot
+        sole[s] = [("heel", S + "Foot", pts[S + "Heel"]), ("ball", S + "ToeBase", ball), ("toe", S + "ToeBase", tip)]
     print(f"{'clip':<18}{'dur':>6}  {'max slide':>9}  {'min y':>8}  {'knee deg':>13}  {'stretch':>7}  {'seam':>8}  root motion")
     for name, clip in P.clips.items():
         ex = clip["extras"] or {}
         dur = clip["dur"]
-        n = int(round(dur * a.hz)) + 1
+        step = max(1, int(round(a.hz / 30)))
+        n = int(round(dur * 30)) * step + 1
         ts = np.linspace(0, dur, n)
         speed = float(ex.get("speed", 0) or 0) if not ex.get("rootMotion") else 0.0
         turn = float(ex.get("turnRate", 0) or 0) if not ex.get("rootMotion") else 0.0
@@ -153,20 +156,24 @@ def main():
             for lab in tracks[s]:
                 tr = tracks[s][lab]
                 miny = min(miny, tr[:, 1].min())
-                on = tr[:, 1] < CONTACT_Y
+                # a point is planted on the 30 fps KEYS where it lies on the ground; its drift is measured over all
+                # samples (also between keys) from the first to the last planted key of each contact.  The landing
+                # and lift-off transitions (the key interval before / after) are motion, not sliding.
+                keys = np.arange(0, n, step)
+                on = tr[keys, 1] < CONTACT_Y
                 i = 0
-                while i < n:
+                while i < len(keys):
                     if not on[i]:
                         i += 1; continue
                     j = i
-                    while j + 1 < n and on[j + 1]:
+                    while j + 1 < len(keys) and on[j + 1]:
                         j += 1
-                    seg = tr[i:j + 1][:, [0, 2]]
+                    seg = tr[keys[i]:keys[j] + 1][:, [0, 2]]
                     d = float(np.linalg.norm(seg - seg[0], axis=1).max()) if j > i else 0.0
                     if a.verbose and j > i:
-                        print(f"    {name} {s}-{lab}: contact {ts[i]:.3f}-{ts[j]:.3f}s slide {d:.5f}")
+                        print(f"    {name} {s}-{lab}: planted {ts[keys[i]]:.3f}-{ts[keys[j]]:.3f}s slide {d:.5f}")
                     if d > worst:
-                        worst, worst_desc = d, f"{s}-{lab} {ts[i]:.2f}-{ts[j]:.2f}s"
+                        worst, worst_desc = d, f"{s}-{lab} {ts[keys[i]]:.2f}-{ts[keys[j]]:.2f}s"
                     i = j + 1
         # loop seam: local rotations of all joints except Root, first vs last key
         seam = 0.0
@@ -178,7 +185,7 @@ def main():
                 seam = max(seam, 1 - abs(float(np.dot(r0, r1))), float(np.abs(t0 - t1).max()) if P.nodes[j].get("name") != "Root" else 0)
         yaw = np.unwrap(root[:, 2])
         kmin = min(knee[s].min() for s in sole); kmax = max(knee[s].max() for s in sole)
-        kjump = max(np.abs(np.diff(knee[s])).max() * a.hz / 30 for s in sole)       # deg per 1/30 s
+        kjump = max(np.abs(np.diff(knee[s])).max() * step for s in sole)       # deg per 1/30 s
         smax = max(stretch[s].max() for s in sole)
         rm = f"dz={root[-1,1]-root[0,1]:+.4f} dx={root[-1,0]-root[0,0]:+.4f} yaw={np.degrees(yaw[-1]-yaw[0]):+.1f}deg"
         extra = (f" | in-place speed {speed:.4f}/s" if speed else "") + (f" | in-place turn {turn:+.1f} deg/s" if turn else "")

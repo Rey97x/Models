@@ -15,6 +15,9 @@ def _fwd_angle(d):
     return np.arctan2(d[2], -d[1])
 
 
+_DONE = set()      # ids of rotation arrays already processed (clips may share track arrays)
+
+
 def sash_follow_thigh(clip, joints, gain=0.9, soft=0.06):
     heads = {j["name"]: np.asarray(j["head"], float) for j in joints}
     tr = clip["tracks"]
@@ -27,6 +30,8 @@ def sash_follow_thigh(clip, joints, gain=0.9, soft=0.06):
     q_thigh = np.asarray(tr["LeftUpLeg"]["rotation"], float)
     if "Sash1" not in tr or tr["Sash1"].get("rotation") is None:
         tr["Sash1"] = {"t": tr["LeftUpLeg"]["t"], "rotation": np.tile([0, 0, 0, 1.0], (n, 1))}
+    if id(tr["Sash1"]["rotation"]) in _DONE:
+        return clip
     q_sash = np.asarray(tr["Sash1"]["rotation"], float).copy()
     if len(q_sash) != n:
         return clip
@@ -40,5 +45,6 @@ def sash_follow_thigh(clip, joints, gain=0.9, soft=0.06):
         delta = target - cur
         if delta > 1e-5:
             q_sash[i] = q_mul(q_axis_angle([1, 0, 0], -delta), q_sash[i])
-    tr["Sash1"]["rotation"] = q_sash
+    tr["Sash1"] = dict(tr["Sash1"], rotation=q_sash)
+    _DONE.add(id(q_sash))
     return clip

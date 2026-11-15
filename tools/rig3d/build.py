@@ -52,9 +52,11 @@ def main():
         import animate
         clips = animate.build_clips(a.skeleton)
         want = a.clips.split(",") if a.clips else None
+        from cloth_fix import sash_follow_thigh
         for c in clips:
             if want and c["name"] not in want:
                 continue
+            sash_follow_thigh(c, joints)
             g.add_animation(c["name"], c["tracks"], extras=c.get("extras"))
             print(f"clip {c['name']:<18} {c['duration']:.3f}s  tracks={len(c['tracks'])}  extras={c.get('extras')}")
     g.save(a.out)
