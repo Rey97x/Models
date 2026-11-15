@@ -7,7 +7,7 @@ Modello sorgente: `src/desert_assassin_tripo.glb` (Tripo, statico, 63.492 vertic
 | `nomade3d_rigged.glb` | Modello completo: scheletro a 29 ossa, pesi di skinning, 7 animazioni, texture 4K originali |
 | `nomade3d_web.glb` | Stesso modello con texture 2K (5,8 MB) per web e mobile |
 | `nomade3d_rigged.fbx` | Export FBX fatto con Blender (per Unity / Unreal) |
-| `index.html` | Visualizzatore three.js con griglia a terra e orme |
+| `index.html`, `web/` | Visualizzatore three.js con griglia a terra e orme; `web/` contiene lo stesso modello leggero come glTF JSON + texture .jpg |
 | `rig/skeleton.json`, `rig/weights.npz` | Posizioni delle articolazioni e pesi (dati intermedi) |
 
 ## Scheletro
@@ -50,6 +50,7 @@ pip install numpy scipy pillow bpy          # bpy serve solo per il controllo Bl
 python3 tools/rig3d/skin_weights.py         # pesi  -> character3d/rig/weights.npz
 python3 tools/rig3d/build.py                # GLB   -> character3d/nomade3d_rigged.glb
 python3 tools/rig3d/make_web.py character3d/nomade3d_rigged.glb character3d/nomade3d_web.glb
+python3 tools/rig3d/make_gltf_json.py character3d/nomade3d_web.glb character3d/web   # file per il visualizzatore
 node tools/rig3d/validate.cjs character3d/nomade3d_rigged.glb
 python3 tools/rig3d/audit_feet.py character3d/nomade3d_rigged.glb
 python3 tools/rig3d/check_anim.py character3d/nomade3d_rigged.glb

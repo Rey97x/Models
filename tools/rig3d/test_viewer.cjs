@@ -21,7 +21,7 @@ const NM = path.join(__dirname, 'node_modules', 'three');
       const u = new URL(r.request().url());
       if (u.hostname === 'cdn.jsdelivr.net') return r.fulfill({ path: path.join(NM, u.pathname.replace('/npm/three@0.160.0/', '')), contentType: 'text/javascript' });
       if (u.hostname === 'local') {
-        if (u.pathname === '/nomade3d_web.glb') return r.fulfill({ path: path.resolve(glb), contentType: 'model/gltf-binary' });
+        if (glb && glb !== '-' && u.pathname === '/nomade3d_web.glb') return r.fulfill({ path: path.resolve(glb), contentType: 'model/gltf-binary' });
         return r.fulfill({ path: path.join(ROOT, u.pathname) });
       }
       return r.abort();
