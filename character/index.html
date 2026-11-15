@@ -1,0 +1,538 @@
+<meta charset="utf-8">
+<title>Nomade · Rig animato</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: stage a sinistra (palco a tutta altezza), pannello di regia a destra; su telefono si impilano. */
+:root {
+  --bg: #e7e9e3;
+  --panel: #f6f7f3;
+  --ink: #1f2420;
+  --muted: #5d665f;
+  --line: #cfd4cb;
+  --accent: #34479c;        /* indaco dei veli */
+  --accent-ink: #ffffff;
+  --stage-top: #d9dfe4;
+  --stage-bottom: #c9b99c;  /* sabbia */
+  --bone: #34479c;
+  --font-display: "Bricolage Grotesque", "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121419; --panel: #1a1d24; --ink: #e8e9ec; --muted: #9aa0ad; --line: #2c313b;
+    --accent: #8e9cf2; --accent-ink: #10131c; --stage-top: #1b2030; --stage-bottom: #3a3226; --bone: #a9b4ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121419; --panel: #1a1d24; --ink: #e8e9ec; --muted: #9aa0ad; --line: #2c313b;
+  --accent: #8e9cf2; --accent-ink: #10131c; --stage-top: #1b2030; --stage-bottom: #3a3226; --bone: #a9b4ff;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5;
+}
+.app {
+  display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; height: 100%;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+.stage {
+  position: relative; min-width: 0; min-height: 420px; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(180deg, var(--stage-top) 0%, var(--stage-top) 55%, var(--stage-bottom) 100%);
+}
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.hud {
+  position: absolute; left: 14px; bottom: 12px; right: 14px; display: flex; justify-content: space-between; gap: 12px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted); pointer-events: none;
+}
+.hud b { color: var(--ink); font-weight: 500; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-family: var(--font-mono); }
+aside {
+  min-width: 0; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 20px; display: flex; flex-direction: column; gap: 22px; box-sizing: border-box;
+}
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.sub { margin: 6px 0 0; color: var(--muted); }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+.clips { display: grid; gap: 6px; }
+.clip {
+  display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 10px; text-align: left;
+  font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 12px; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.clip:hover { border-color: var(--accent); }
+.clip:focus-visible, .btn:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.clip .n { font-weight: 600; }
+.clip .d { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.clip .x { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+.clip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.clip[aria-pressed="true"] .d, .clip[aria-pressed="true"] .x { color: var(--accent-ink); opacity: .85; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.btn {
+  font: inherit; font-weight: 500; border: 1px solid var(--line); background: transparent; color: var(--ink);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+label.speed { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; width: 100%; }
+input[type="range"] { accent-color: var(--accent); width: 100%; }
+.mono { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+dl.stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
+dl.stats dt { color: var(--muted); }
+dl.stats dd { margin: 0; font-family: var(--font-mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { height: 72vh; min-height: 380px; }
+  aside { overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) { .clip { transition: none; } }
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="loading" id="loading">Caricamento del rig…</div>
+    <div class="hud"><span>clip <b id="hudClip">—</b></span><span id="hudFrame">frame 0</span></div>
+  </div>
+  <aside>
+    <header>
+      <h1>Nomade del deserto</h1>
+      <p class="sub">Rig 2D a mesh deformabile costruito dalla foto di riferimento: 26 ossa, pesi geodesici, animazioni a 30 fps.</p>
+    </header>
+
+    <section>
+      <h2>Animazioni</h2>
+      <div class="clips" id="clips"></div>
+    </section>
+
+    <section>
+      <h2>Riproduzione</h2>
+      <div class="row">
+        <button class="btn" id="pause" type="button" aria-pressed="false">Pausa</button>
+        <label class="speed" for="speed"><span>Velocità</span><input id="speed" type="range" min="0.25" max="2" step="0.05" value="1"><span class="mono" id="speedVal">1.00×</span></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vista rig</h2>
+      <div class="row">
+        <button class="btn" id="tSkel" type="button" aria-pressed="false">Scheletro</button>
+        <button class="btn" id="tWeights" type="button" aria-pressed="false">Pesi</button>
+        <button class="btn" id="tWire" type="button" aria-pressed="false">Wireframe</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Dati del rig</h2>
+      <dl class="stats">
+        <dt>Ossa</dt><dd id="sBones">—</dd>
+        <dt>Vertici</dt><dd id="sVerts">—</dd>
+        <dt>Triangoli</dt><dd id="sTris">—</dd>
+        <dt>Influenze/vertice</dt><dd>≤ 4</dd>
+        <dt>Texture</dt><dd id="sTex">—</dd>
+      </dl>
+    </section>
+    <p class="note">Nastri dei polsi e fascia in vita hanno ossa proprie con moto secondario. Le gambe usano IK a due ossa per tenere i piedi a terra.</p>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const FPS = 30;
+const DEG = Math.PI / 180;
+const stageEl = document.getElementById('stage');
+
+/* ------------------------------------------------------------------ load */
+const rig = await (await fetch('rig/rig.json')).json();
+const tex = await new THREE.TextureLoader().loadAsync('rig/' + rig.texture);
+tex.colorSpace = THREE.SRGBColorSpace;
+tex.anisotropy = 4;
+
+/* ------------------------------------------------------------- skeleton */
+const B = {}, R = {};           // bones by name, rest data by name
+const bones = [];
+for (const b of rig.bones) {
+  const bone = new THREE.Bone();
+  bone.name = b.name;
+  const ph = b.parent ? rig.bones.find(x => x.name === b.parent).head : [0, 0];
+  bone.position.set(b.head[0] - ph[0], b.head[1] - ph[1], 0);
+  if (b.parent) B[b.parent].add(bone);
+  B[b.name] = bone; bones.push(bone);
+  const head = new THREE.Vector2(...b.head), tail = new THREE.Vector2(...b.tail);
+  R[b.name] = { head, tail, local: bone.position.clone(), ang: Math.atan2(tail.y - head.y, tail.x - head.x), parent: b.parent, len: head.distanceTo(tail) };
+}
+const NAMES = rig.bones.map(b => b.name);
+
+/* ----------------------------------------------------------------- mesh */
+const m = rig.mesh;
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.Float32BufferAttribute(m.position, 3));
+geo.setAttribute('uv', new THREE.Float32BufferAttribute(m.uv, 2));
+geo.setIndex(m.index);
+geo.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(m.skinIndex, 4));
+geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(m.skinWeight, 4));
+// weight-view colours: one hue per bone, blended by weight
+const hue = NAMES.map((_, k) => new THREE.Color().setHSL((k * 0.618) % 1, 0.75, 0.55));
+const nv = m.position.length / 3, col = new Float32Array(nv * 3);
+for (let i = 0; i < nv; i++) for (let j = 0; j < 4; j++) {
+  const w = m.skinWeight[i * 4 + j], c = hue[m.skinIndex[i * 4 + j]];
+  col[i * 3] += c.r * w; col[i * 3 + 1] += c.g * w; col[i * 3 + 2] += c.b * w;
+}
+const weightColors = new THREE.Float32BufferAttribute(col, 3);
+geo.setAttribute('color', weightColors);
+
+const matTex = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.02, alphaToCoverage: true, side: THREE.DoubleSide });
+const matWeights = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+const mesh = new THREE.SkinnedMesh(geo, matTex);
+mesh.name = 'Nomade';
+mesh.frustumCulled = false;
+mesh.add(B.root);
+mesh.updateMatrixWorld(true);
+mesh.bind(new THREE.Skeleton(bones));
+const character = new THREE.Group();
+character.name = 'NomadeRig';
+character.add(mesh);
+
+/* ---------------------------------------------------------------- scene */
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+stageEl.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -10, 10);
+scene.add(character);
+
+// soft ground shadow
+const sc = document.createElement('canvas'); sc.width = sc.height = 128;
+const sg = sc.getContext('2d'), grd = sg.createRadialGradient(64, 64, 0, 64, 64, 64);
+grd.addColorStop(0, 'rgba(40,30,20,0.45)'); grd.addColorStop(1, 'rgba(40,30,20,0)');
+sg.fillStyle = grd; sg.fillRect(0, 0, 128, 128);
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(sc), transparent: true, depthWrite: false }));
+shadow.position.set(0, -0.005, -1); shadow.scale.set(0.95, 0.16, 1); shadow.renderOrder = -1;
+scene.add(shadow);
+
+// skeleton overlay
+const skel = new THREE.SkeletonHelper(mesh);
+skel.material.depthTest = false; skel.material.linewidth = 2;
+skel.renderOrder = 10; skel.visible = false;
+const jointGeo = new THREE.BufferGeometry();
+jointGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(bones.length * 3), 3));
+const joints = new THREE.Points(jointGeo, new THREE.PointsMaterial({ size: 7, sizeAttenuation: false, depthTest: false }));
+joints.renderOrder = 11; joints.visible = false;
+scene.add(skel, joints);
+function themeBoneColor() {
+  const c = new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bone').trim() || '#34479c');
+  skel.material.color = c; skel.material.vertexColors = false; skel.material.needsUpdate = true;
+  joints.material.color = c;
+}
+themeBoneColor();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeBoneColor);
+new MutationObserver(themeBoneColor).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+function resize() {
+  const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  renderer.setSize(w, h, false);
+  const needH = 3.0, needW = 1.9, cy = 1.22;
+  let vh = needH, vw = needH * w / h;
+  if (vw < needW) { vw = needW; vh = needW * h / w; }
+  camera.left = -vw / 2; camera.right = vw / 2;
+  camera.top = cy + vh / 2; camera.bottom = cy - vh / 2;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stageEl);
+resize();
+
+/* ===================================================== pose & animation */
+const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+const rot = (v, a) => new THREE.Vector2(v.x * Math.cos(a) - v.y * Math.sin(a), v.x * Math.sin(a) + v.y * Math.cos(a));
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const smooth = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+const TAU = Math.PI * 2;
+/** piecewise smooth keyframes: kf(t, [[t0,v0],[t1,v1],...]) */
+function kf(t, keys) {
+  if (t <= keys[0][0]) return keys[0][1];
+  for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) {
+    const [t0, v0] = keys[i - 1], [t1, v1] = keys[i];
+    return v0 + (v1 - v0) * smooth((t - t0) / (t1 - t0));
+  }
+  return keys[keys.length - 1][1];
+}
+function blank() { const p = {}; for (const n of NAMES) p[n] = { r: 0, x: 0, y: 0, s: 1, sx: 1, sy: 1 }; return p; }
+/** world rotation delta (vs rest) accumulated down to bone n */
+function wdelta(p, n) { let a = 0; for (let k = n; k; k = R[k].parent) a += p[k].r; return a; }
+
+/** arm by "openness" angles: 0 = straight down, 90 = horizontal out, 180 = straight up, negative = across body */
+function arm(p, side, aUpper, aFore, handRel = 0) {
+  const sgn = side === 'R' ? -1 : 1;
+  const wU = (-90 + sgn * aUpper) * DEG, wF = (-90 + sgn * aFore) * DEG;
+  const parentW = wdelta(p, 'chest');
+  const dU = wrap(wU - R['upperarm_' + side].ang), dF = wrap(wF - R['forearm_' + side].ang);
+  p['upperarm_' + side].r = wrap(dU - parentW);
+  p['forearm_' + side].r = wrap(dF - dU);
+  p['hand_' + side].r = sgn * handRel * DEG;
+}
+
+/** two-bone leg IK keeping the knee pointing outwards; foot keeps world angle footW (deg, rest = 0) */
+function leg(p, side, target, footW = 0) {
+  const th = 'thigh_' + side, sh = 'shin_' + side, ft = 'foot_' + side;
+  const H0 = R[th].head, K0 = R[sh].head, A0 = R[ft].head;
+  const rootP = new THREE.Vector2(p.root.x, p.root.y);
+  const hipsW = p.root.r + p.hips.r;
+  const hipsHead = R.hips.head.clone().add(rot(new THREE.Vector2(p.hips.x, p.hips.y), p.root.r)).add(rootP);
+  const H = hipsHead.clone().add(rot(H0.clone().sub(R.hips.head), hipsW));
+  const l1 = K0.distanceTo(H0), l2 = A0.distanceTo(K0), d0 = A0.distanceTo(H0);
+  const T = target.clone(), dv = T.clone().sub(H);
+  let d = dv.length();
+  const f = clamp(1 - 0.55 * Math.max(0, 1 - d / d0), 0.8, 1);   // foreshortening (knee towards camera)
+  const L1 = l1 * f, L2 = l2 * f;
+  d = clamp(d, Math.abs(L1 - L2) + 1e-4, L1 + L2 - 1e-5);
+  const A = Math.acos(clamp((L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), -1, 1));
+  const base = Math.atan2(dv.y, dv.x);
+  // rest bend (legs are almost straight in the reference)
+  const restBase = Math.atan2(A0.y - H0.y, A0.x - H0.x);
+  const restA = Math.acos(clamp((l1 * l1 + d0 * d0 - l2 * l2) / (2 * l1 * d0), -1, 1));
+  const restSign = Math.sign(wrap(Math.atan2(K0.y - H0.y, K0.x - H0.x) - restBase)) || (side === 'R' ? -1 : 1);
+  const s = side === 'R' ? -1 : 1;
+  const bend = A - restA * 0;                     // full bend from IK
+  const t1 = base + s * bend;
+  const K = H.clone().add(new THREE.Vector2(Math.cos(t1), Math.sin(t1)).multiplyScalar(L1));
+  const t2 = Math.atan2(T.y - K.y, T.x - K.x);
+  const d1 = wrap(t1 - R[th].ang), d2 = wrap(t2 - R[sh].ang);
+  p[th].r = wrap(d1 - hipsW); p[sh].r = wrap(d2 - d1);
+  p[th].sy = f; p[ft].sy = 1 / f;
+  p[ft].r = wrap(footW * DEG - d2);
+  void restSign;
+}
+function plant(p, side, lift = 0, dx = 0, footW = 0, relRoot = false) {
+  const A0 = R['foot_' + side].head.clone();
+  A0.x += dx; A0.y += lift + (relRoot ? p.root.y : 0);
+  leg(p, side, A0, footW);
+}
+
+/** secondary motion: ribbons hang by gravity, sash and skirt follow the hips */
+function secondary(p, t, amp = 1, freq = 2, phase = 0) {
+  for (const s of ['R', 'L']) {
+    const fw = wdelta(p, 'forearm_' + s);
+    const w = Math.sin(TAU * freq * t + phase + (s === 'R' ? 0 : 1.3));
+    const w2 = Math.sin(TAU * freq * t + phase - 0.9 + (s === 'R' ? 0 : 1.3));
+    p['ribbon_' + s + '1'].r = wrap(-fw + 4 * amp * w * DEG);
+    p['ribbon_' + s + '2'].r = 6 * amp * w2 * DEG;
+  }
+  const hw = wdelta(p, 'hips');
+  const sw = Math.sin(TAU * freq * t + phase + 0.4), sw2 = Math.sin(TAU * freq * t + phase - 0.5);
+  p.sash1.r = -hw * 0.8 + 2 * amp * sw * DEG;
+  p.sash2.r = 3.5 * amp * sw2 * DEG;
+  // tunic flaps follow thighs half-way
+  for (const s of ['R', 'L']) p['skirt_' + s].r = p['thigh_' + s].r * 0.45 + 1.2 * amp * sw * DEG;
+}
+
+/* ------------------------------------------------------------- clips */
+const CLIPS = [
+  { id: 'idle', name: 'Respiro', dur: 4, info: 'Posa di riposo: respiro, peso che oscilla, sguardo vigile.', pose(t) {
+    const p = blank(), s = Math.sin(TAU * t), br = 0.5 - 0.5 * Math.cos(TAU * 2 * t);
+    p.hips.y = -0.006 * br; p.hips.x = 0.006 * s; p.hips.r = 0.7 * s * DEG;
+    p.spine.r = -0.5 * s * DEG; p.chest.y = 0.004 * br; p.chest.r = -0.3 * s * DEG;
+    p.neck.r = -0.4 * s * DEG; p.head.r = 2.5 * Math.sin(TAU * t + 1.2) * DEG;
+    arm(p, 'R', 27 - 2 * br + 1.5 * s, 25 - 3 * br, 3 * Math.sin(TAU * t + 0.6));
+    arm(p, 'L', 27 - 2 * br - 1.5 * s, 25 - 3 * br, 3 * Math.sin(TAU * t + 2.1));
+    plant(p, 'R'); plant(p, 'L');
+    secondary(p, t, 1, 2);
+    return p;
+  } },
+  { id: 'wave', name: 'Saluto', dur: 2.4, info: 'Alza la mano destra e saluta, inclinando il capo.', pose(t) {
+    const p = blank(), w = Math.sin(TAU * 3 * t), s = Math.sin(TAU * t);
+    p.hips.x = 0.012; p.hips.r = -1.5 * DEG; p.spine.r = 1.5 * DEG; p.chest.r = 1.5 * DEG + 0.6 * s * DEG;
+    p.head.r = (-5 + 1.5 * Math.sin(TAU * 3 * t + 0.8)) * DEG; p.neck.r = -2 * DEG;
+    arm(p, 'R', 100 + 4 * Math.sin(TAU * 3 * t + 1.2), 168 + 24 * w, 10 * Math.sin(TAU * 3 * t - 0.7));
+    arm(p, 'L', 18 + 2 * s, 12, 3 * s);
+    plant(p, 'R'); plant(p, 'L');
+    secondary(p, t, 1.6, 3, 0.5);
+    return p;
+  } },
+  { id: 'guard', name: 'Guardia', dur: 1.6, info: 'Ginocchia flesse, pugni alti, molleggio sul posto.', pose(t) {
+    const p = blank(), b = Math.sin(TAU * 2 * t), c = 0.5 - 0.5 * Math.cos(TAU * 2 * t);
+    p.hips.y = -0.07 - 0.014 * c; p.hips.r = 1.5 * DEG; p.hips.x = 0.004 * Math.sin(TAU * t);
+    p.spine.r = -1 * DEG; p.chest.r = -1.5 * DEG + 0.8 * b * DEG; p.chest.y = -0.004 * c;
+    p.neck.r = 1 * DEG; p.head.r = (-1 + 1.2 * Math.sin(TAU * t)) * DEG;
+    arm(p, 'R', 16 + 3 * b, -142 + 4 * b, -10);
+    arm(p, 'L', 22 - 3 * b, -132 - 4 * b, -10);
+    p.hand_R.s = 1.08; p.hand_L.s = 1.08;
+    plant(p, 'R', 0, -0.03, 0); plant(p, 'L', 0, 0.03, 0);
+    secondary(p, t, 1.4, 2);
+    return p;
+  } },
+  { id: 'punch', name: 'Attacco', dur: 1.4, info: 'Diretto destro e sinistro dalla guardia, verso la camera.', pose(t) {
+    const p = blank();
+    const pR = kf(t, [[0, 0], [0.08, 1], [0.24, 1], [0.38, 0]]);
+    const pL = kf(t, [[0.42, 0], [0.5, 1], [0.66, 1], [0.8, 0]]);
+    const c = 0.5 - 0.5 * Math.cos(TAU * t);
+    p.hips.y = -0.07 - 0.01 * c; p.hips.r = (1.5 + 3 * pR - 3 * pL) * DEG;
+    p.spine.r = (-1 + 2 * pR - 2 * pL) * DEG; p.chest.r = (-1.5 + 4 * pR - 4 * pL) * DEG;
+    p.head.r = (-2 * pR + 2 * pL) * DEG;
+    arm(p, 'R', 16 + 22 * pR, -142 - 36 * pR, -10 + 4 * pR);
+    arm(p, 'L', 22 + 16 * pL, -132 - 46 * pL, -10 + 4 * pL);
+    p.hand_R.s = 1.08 + 0.6 * pR; p.hand_L.s = 1.08 + 0.6 * pL;
+    p.forearm_R.s = 1 + 0.12 * pR; p.forearm_L.s = 1 + 0.12 * pL;
+    plant(p, 'R', 0, -0.03); plant(p, 'L', 0, 0.03);
+    secondary(p, t, 1.8, 2, 0.3);
+    return p;
+  } },
+  { id: 'march', name: 'Marcia', dur: 1.1, info: 'Passo sul posto: ginocchia verso la camera, braccia in controfase.', pose(t) {
+    const p = blank(), ph = TAU * t, s = Math.sin(ph);
+    const lR = Math.max(0, s), lL = Math.max(0, -s);
+    p.hips.x = 0.018 * s; p.hips.y = -0.02 + 0.012 * Math.cos(2 * ph); p.hips.r = -2.2 * s * DEG;
+    p.spine.r = 1.2 * s * DEG; p.chest.r = 1 * s * DEG; p.head.r = 0.8 * s * DEG;
+    arm(p, 'R', 24 - 6 * s, 26 - 22 * Math.max(0, -s), 4);
+    arm(p, 'L', 24 + 6 * s, 26 - 22 * Math.max(0, s), 4);
+    plant(p, 'R', 0.16 * smooth(lR * 1.1), 0.01 * lR, 8 * lR);
+    plant(p, 'L', 0.16 * smooth(lL * 1.1), -0.01 * lL, -8 * lL);
+    secondary(p, t, 2, 2, 0.6);
+    return p;
+  } },
+  { id: 'jump', name: 'Salto', dur: 1.8, info: 'Carica, stacco a braccia alte, atterraggio ammortizzato.', pose(t) {
+    const p = blank();
+    const crouch = kf(t, [[0, 0], [0.2, 1], [0.3, 0.1], [0.36, 0], [0.74, 0], [0.8, 0.9], [0.9, 0.5], [1, 0]]);
+    const air = t > 0.28 && t < 0.78 ? (t - 0.28) / 0.5 : -1;
+    const y = air >= 0 ? 0.38 * 4 * air * (1 - air) : 0;
+    const tuck = kf(t, [[0.3, 0], [0.45, 1], [0.6, 1], [0.74, 0]]);
+    const up = kf(t, [[0, 0], [0.18, -0.35], [0.32, 1], [0.62, 1], [0.8, 0.15], [1, 0]]);
+    p.root.y = y;
+    p.hips.y = -0.12 * crouch; p.chest.r = 0; p.spine.r = 0;
+    p.head.r = (-3 * crouch + 2 * tuck) * DEG; p.neck.r = 2 * crouch * DEG;
+    const aU = 27 + (up > 0 ? up * 128 : up * 40), aF = 25 + (up > 0 ? up * 140 : up * 30);
+    arm(p, 'R', aU, aF, 10 * up);
+    arm(p, 'L', aU, aF, 10 * up);
+    plant(p, 'R', 0.13 * tuck, -0.02 * tuck, 14 * tuck, true);
+    plant(p, 'L', 0.13 * tuck, 0.02 * tuck, -14 * tuck, true);
+    secondary(p, t, 1 + 2 * Math.abs(up), 2.2, 0);
+    // ribbons trail upwards a bit while rising, then fall
+    const v = air >= 0 ? (1 - 2 * air) : 0;
+    p.ribbon_R1.r += -8 * v * DEG; p.ribbon_L1.r += 8 * v * DEG;
+    return p;
+  } },
+];
+
+/* bake procedural poses into keyframe clips (also makes them exportable) */
+function bake(def) {
+  const n = Math.round(def.dur * FPS) + 1;
+  const times = new Float32Array(n);
+  const tr = {};
+  for (const name of NAMES) tr[name] = { q: new Float32Array(n * 4), p: new Float32Array(n * 3), s: new Float32Array(n * 3) };
+  const q = new THREE.Quaternion(), e = new THREE.Euler();
+  for (let i = 0; i < n; i++) {
+    const t = i / (n - 1);
+    times[i] = t * def.dur;
+    const P = def.pose(t % 1 === 0 && i === n - 1 ? 0 : t); // last frame == first for seamless loop
+    for (const name of NAMES) {
+      const c = P[name], rl = R[name].local, o = tr[name];
+      q.setFromEuler(e.set(0, 0, c.r)).toArray(o.q, i * 4);
+      o.p[i * 3] = rl.x + c.x; o.p[i * 3 + 1] = rl.y + c.y; o.p[i * 3 + 2] = 0;
+      o.s[i * 3] = c.s * c.sx; o.s[i * 3 + 1] = c.s * c.sy; o.s[i * 3 + 2] = 1;
+    }
+  }
+  const tracks = [];
+  for (const name of NAMES) {
+    tracks.push(new THREE.QuaternionKeyframeTrack(name + '.quaternion', times, tr[name].q));
+    tracks.push(new THREE.VectorKeyframeTrack(name + '.position', times, tr[name].p));
+    tracks.push(new THREE.VectorKeyframeTrack(name + '.scale', times, tr[name].s));
+  }
+  const clip = new THREE.AnimationClip(def.id, def.dur, tracks);
+  clip.optimize();
+  return clip;
+}
+const clips = CLIPS.map(bake);
+const mixer = new THREE.AnimationMixer(mesh);
+const actions = Object.fromEntries(clips.map(c => [c.name, mixer.clipAction(c)]));
+let current = null;
+function play(id, fade = 0.35) {
+  const next = actions[id];
+  if (!next || next === current) return;
+  next.reset().setEffectiveWeight(1).play();
+  if (current) current.crossFadeTo(next, fade, false);
+  current = next;
+  document.querySelectorAll('.clip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  document.getElementById('hudClip').textContent = CLIPS.find(c => c.id === id).name;
+}
+
+/* ------------------------------------------------------------------ UI */
+const list = document.getElementById('clips');
+for (const c of CLIPS) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'clip'; b.dataset.id = c.id; b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = `<span class="n">${c.name}</span><span class="d">${c.dur.toFixed(1)} s · ${Math.round(c.dur * FPS)} f</span><span class="x">${c.info}</span>`;
+  b.addEventListener('click', () => play(c.id));
+  list.append(b);
+}
+const speed = document.getElementById('speed'), speedVal = document.getElementById('speedVal');
+speed.addEventListener('input', () => { speedVal.textContent = Number(speed.value).toFixed(2) + '×'; });
+let paused = false;
+const pauseBtn = document.getElementById('pause');
+pauseBtn.addEventListener('click', () => { paused = !paused; pauseBtn.setAttribute('aria-pressed', String(paused)); pauseBtn.textContent = paused ? 'Riprendi' : 'Pausa'; });
+function toggle(id, fn) { const el = document.getElementById(id); el.addEventListener('click', () => { const on = el.getAttribute('aria-pressed') !== 'true'; el.setAttribute('aria-pressed', String(on)); fn(on); }); }
+toggle('tSkel', on => { skel.visible = joints.visible = on; });
+toggle('tWeights', on => { mesh.material = on ? matWeights : matTex; });
+toggle('tWire', on => { matTex.wireframe = matWeights.wireframe = on; });
+document.getElementById('sBones').textContent = bones.length;
+document.getElementById('sVerts').textContent = nv.toLocaleString('it-IT');
+document.getElementById('sTris').textContent = (m.index.length / 3).toLocaleString('it-IT');
+document.getElementById('sTex').textContent = `${tex.image.width}×${tex.image.height}`;
+document.getElementById('loading').hidden = true;
+
+/* ---------------------------------------------------------------- loop */
+const clock = new THREE.Clock();
+const hudFrame = document.getElementById('hudFrame');
+const v3 = new THREE.Vector3();
+function frame() {
+  const dt = clock.getDelta();
+  if (!paused) mixer.update(dt * Number(speed.value));
+  mesh.updateMatrixWorld(true);
+  const ry = B.root.position.y;
+  const k = 1 / (1 + ry * 2.2);
+  shadow.scale.set(0.95 * k, 0.16 * k, 1);
+  shadow.material.opacity = k;
+  if (joints.visible) {
+    const a = jointGeo.attributes.position;
+    bones.forEach((b, i) => { b.getWorldPosition(v3); a.setXYZ(i, v3.x, v3.y, 1); });
+    a.needsUpdate = true;
+  }
+  if (current) hudFrame.textContent = `frame ${String(Math.floor(current.time * FPS)).padStart(2, '0')} / ${Math.round(current.getClip().duration * FPS)}`;
+  renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(frame);
+play(location.hash.slice(1) && actions[location.hash.slice(1)] ? location.hash.slice(1) : 'idle', 0);
+
+/* -------------------------------------------- hooks for tools/export_glb */
+window.rigApp = {
+  clips: CLIPS.map(c => c.id),
+  play, actions, mixer,
+  pose(id, t) {   // freeze a clip at normalised time t (for screenshots)
+    mixer.stopAllAction(); current = null; play(id, 0);
+    actions[id].time = t * actions[id].getClip().duration; mixer.update(0); paused = true;
+  },
+  async exportGLB() {
+    const { GLTFExporter } = await import('three/addons/exporters/GLTFExporter.js');
+    mixer.stopAllAction();
+    for (const b of bones) { b.position.copy(R[b.name].local); b.quaternion.identity(); b.scale.set(1, 1, 1); }
+    mesh.material = matTex; geo.deleteAttribute('color');
+    const out = await new GLTFExporter().parseAsync(character, { binary: true, animations: clips });
+    geo.setAttribute('color', weightColors);
+    return out;
+  },
+};
+window.rigReady = true;
+</script>
