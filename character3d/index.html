@@ -157,6 +157,14 @@ dl.stats dd { margin: 0; font-family: var(--font-mono); font-size: 12px; text-al
   </aside>
 </div>
 
+<script>
+/* Runs even if the 3D library cannot be loaded: report the problem instead of an endless "Caricamento…" */
+(function () {
+  var say = function (m) { var t = document.getElementById('loadText'); var l = document.getElementById('loading'); if (t && l && !(window.viewer && window.viewer.ready)) { l.hidden = false; t.textContent = m; } };
+  window.addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') say('Non riesco a caricare la libreria 3D (three.js). Controlla la connessione e ricarica la pagina.'); }, true);
+  setTimeout(function () { if (!window.__moduleStarted) say('La libreria 3D non si è avviata. Ricarica la pagina; se resta così, scrivimi cosa vedi.'); }, 15000);
+})();
+</script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -169,6 +177,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
+window.__moduleStarted = true;
 const GLB_URL = 'web/nomade3d_web.gltf.json';   // glTF JSON + .jpg textures (same model as nomade3d_web.glb)
 const FPS = 30;
 const CELL = 0.1, TILE = 0.5;                      // grid cell and texture tile, in model units
@@ -268,13 +277,47 @@ resize();
 renderer.render(scene, camera);
 
 /* ----------------------------------------------------------------- load */
+/* The glTF JSON carries its geometry buffer as base64.  Loaders normally fetch() that data: URI, which strict hosts
+   refuse, so the file is downloaded with one plain same-origin fetch, the buffer is decoded here and the model is
+   handed to the loader as an in-memory GLB.  Textures stay ordinary .jpg files next to it. */
+async function loadModel(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const total = Number(res.headers.get('content-length')) || 5.7e6;
+  const chunks = []; let got = 0;
+  if (res.body && res.body.getReader) {
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      chunks.push(value); got += value.length;
+      $('loadBar').style.width = Math.min(100, Math.round(100 * got / total)) + '%';
+      $('loadText').textContent = `Caricamento del modello… ${num(got / 1e6, 1)} MB`;
+    }
+  } else { const b = new Uint8Array(await res.arrayBuffer()); chunks.push(b); got = b.length; }
+  const all = new Uint8Array(got); let o = 0; for (const c of chunks) { all.set(c, o); o += c.length; }
+  const json = JSON.parse(new TextDecoder().decode(all));
+  const b64 = json.buffers[0].uri.slice(json.buffers[0].uri.indexOf(',') + 1);
+  delete json.buffers[0].uri;
+  const raw = atob(b64), bin = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+  let head = new TextEncoder().encode(JSON.stringify(json));
+  const pad = n => (4 - n % 4) % 4;
+  const jl = head.length + pad(head.length), bl = bin.length + pad(bin.length);
+  const glb = new Uint8Array(12 + 8 + jl + 8 + bl).fill(0x20, 20, 20 + jl), dv = new DataView(glb.buffer);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, glb.length, true);
+  dv.setUint32(12, jl, true); dv.setUint32(16, 0x4E4F534A, true); glb.set(head, 20);
+  dv.setUint32(20 + jl, bl, true); dv.setUint32(24 + jl, 0x004E4942, true); glb.set(bin, 28 + jl);
+  const loader = new GLTFLoader();
+  return await new Promise((ok, fail) => loader.parse(glb.buffer, url.slice(0, url.lastIndexOf('/') + 1), ok, fail));
+}
+const showError = msg => { $('loading').hidden = false; $('loadText').textContent = 'Non riesco a mostrare il modello: ' + msg; };
+addEventListener('error', e => showError(e.message || 'errore di script'));
+addEventListener('unhandledrejection', e => showError(String(e.reason && e.reason.message || e.reason)));
 let gltf;
 try {
-  gltf = await new GLTFLoader().loadAsync(GLB_URL, e => {
-    if (e.total) { $('loadBar').style.width = Math.round(100 * e.loaded / e.total) + '%'; $('loadText').textContent = `Caricamento del modello… ${num(e.loaded / 1e6, 1)} / ${num(e.total / 1e6, 1)} MB`; }
-  });
+  gltf = await loadModel(GLB_URL);
 } catch (err) {
-  $('loadText').textContent = 'Non riesco a caricare il modello (' + GLB_URL + '). Ricarica la pagina per riprovare.';
+  showError(String(err && err.message || err));
   throw err;
 }
 mover.add(gltf.scene);

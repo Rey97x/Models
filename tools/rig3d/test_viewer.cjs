@@ -22,12 +22,15 @@ const NM = path.join(__dirname, 'node_modules', 'three');
       if (u.hostname === 'cdn.jsdelivr.net') return r.fulfill({ path: path.join(NM, u.pathname.replace('/npm/three@0.160.0/', '')), contentType: 'text/javascript' });
       if (u.hostname === 'local') {
         if (glb && glb !== '-' && u.pathname === '/nomade3d_web.glb') return r.fulfill({ path: path.resolve(glb), contentType: 'model/gltf-binary' });
+        // emulate a strict host: only same-origin fetches, scripts from the page + jsDelivr, no data:/blob: fetches
+        if (u.pathname.endsWith('.html')) return r.fulfill({ path: path.join(ROOT, u.pathname), contentType: 'text/html',
+          headers: { 'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src https://fonts.gstatic.com" } });
         return r.fulfill({ path: path.join(ROOT, u.pathname) });
       }
       return r.abort();
     });
     await page.goto('http://local/index.html');
-    await page.waitForFunction('window.viewer && window.viewer.ready', null, { timeout: 240000 });
+    await page.waitForFunction(() => window.viewer && window.viewer.ready, null, { timeout: 240000 });
     const clips = clipArg ? clipArg.split(',') : await page.evaluate(() => window.viewer.recs.map(r => r.id));
     await page.waitForTimeout(1200);
     await page.screenshot({ path: path.join(outDir, `${tag}_start.png`) });
