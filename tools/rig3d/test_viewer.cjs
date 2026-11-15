@@ -7,7 +7,7 @@
 const { chromium } = require('playwright');
 const path = require('path'), fs = require('fs');
 const [glb, outDir, clipArg] = process.argv.slice(2);
-const ROOT = path.join(__dirname, '..', '..', 'character3d');
+const ROOT = path.resolve(process.env.CHAR_DIR || path.join(__dirname, '..', '..', 'character3d'));   // CHAR_DIR=<character dir> to test another one
 const NM = path.join(__dirname, 'node_modules', 'three');
 (async () => {
   fs.mkdirSync(outDir, { recursive: true });

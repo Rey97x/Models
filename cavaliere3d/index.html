@@ -1,0 +1,482 @@
+<meta charset="utf-8">
+<title>Cavaliere 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: palco 3D a sinistra (orbita libera), pannello di regia a destra; su telefono si impilano. */
+:root {
+  --bg: #e7e9e3;
+  --panel: #f6f7f3;
+  --ink: #1f2420;
+  --muted: #5d665f;
+  --line: #cfd4cb;
+  --accent: #34479c;        /* indaco dei veli */
+  --accent-ink: #ffffff;
+  --stage-top: #dfe4e8;
+  --stage-bottom: #cdbfa5;  /* sabbia */
+  --grid: #8e8469;
+  --grid-strong: #5f573f;
+  --print: #34479c;
+  --font-display: "Bricolage Grotesque", "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121419; --panel: #1a1d24; --ink: #e8e9ec; --muted: #9aa0ad; --line: #2c313b;
+    --accent: #8e9cf2; --accent-ink: #10131c; --stage-top: #1b2030; --stage-bottom: #3a3226;
+    --grid: #7d745c; --grid-strong: #b9ad8a; --print: #a9b4ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121419; --panel: #1a1d24; --ink: #e8e9ec; --muted: #9aa0ad; --line: #2c313b;
+  --accent: #8e9cf2; --accent-ink: #10131c; --stage-top: #1b2030; --stage-bottom: #3a3226;
+  --grid: #7d745c; --grid-strong: #b9ad8a; --print: #a9b4ff;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.5; }
+.app {
+  display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 16px; height: 100%;
+  padding-block: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+.stage {
+  position: relative; min-width: 0; min-height: 420px; border-radius: 14px; overflow: hidden;
+  background: linear-gradient(180deg, var(--stage-top) 0%, var(--stage-top) 45%, var(--stage-bottom) 100%);
+}
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+.stage canvas:active { cursor: grabbing; }
+.hud {
+  position: absolute; left: 14px; bottom: 12px; right: 14px; display: flex; justify-content: space-between; gap: 12px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--muted); pointer-events: none; font-variant-numeric: tabular-nums;
+}
+.hud b { color: var(--ink); font-weight: 500; }
+.hint { position: absolute; left: 14px; top: 12px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.loading { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); font-family: var(--font-mono); font-size: 13px; padding: 16px; }
+.loading .bar { width: 180px; height: 3px; background: var(--line); border-radius: 2px; margin: 10px auto 0; overflow: hidden; }
+.loading .bar i { display: block; height: 100%; width: 0; background: var(--accent); }
+aside {
+  min-width: 0; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 20px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box;
+}
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+.sub { margin: 6px 0 0; color: var(--muted); }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+h3 { font-size: 12px; color: var(--muted); margin: 12px 0 6px; font-weight: 500; }
+.clips { display: grid; gap: 6px; }
+.clip {
+  display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 2px 10px; text-align: left;
+  font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 10px;
+  padding: 9px 12px; cursor: pointer; transition: border-color .15s, background .15s;
+}
+.clip:hover { border-color: var(--accent); }
+.clip:focus-visible, .btn:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.clip .n { font-weight: 600; }
+.clip .d { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.clip .x { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+.clip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.clip[aria-pressed="true"] .d, .clip[aria-pressed="true"] .x { color: var(--accent-ink); opacity: .85; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.btn {
+  font: inherit; font-weight: 500; border: 1px solid var(--line); background: transparent; color: var(--ink);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+label.speed { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; width: 100%; }
+input[type="range"] { accent-color: var(--accent); width: 100%; }
+.mono { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.usage { margin: 10px 0 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; font-size: 12.5px; color: var(--muted); }
+.usage b { color: var(--ink); font-weight: 600; }
+dl.stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0; }
+dl.stats dt { color: var(--muted); }
+dl.stats dd { margin: 0; font-family: var(--font-mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+@media (max-width: 860px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .stage { height: 68vh; min-height: 380px; }
+  aside { overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) { .clip { transition: none; } }
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="loading" id="loading"><div><span id="loadText">Caricamento del modello…</span><div class="bar"><i id="loadBar"></i></div></div></div>
+    <div class="hint" id="hint" hidden>Trascina per ruotare · pizzica o usa la rotella per lo zoom</div>
+    <div class="hud"><span>clip <b id="hudClip">—</b></span><span id="hudFrame">—</span></div>
+  </div>
+  <aside>
+    <header>
+      <h1>Cavaliere 3D</h1>
+      <p class="sub">Modello 3D con scheletro, skinning e animazioni. I piedi restano ancorati a terra: guarda le orme sulla griglia.</p>
+    </header>
+
+    <section>
+      <h2>Animazioni</h2>
+      <div id="clipGroups"></div>
+      <p class="usage" id="usage" hidden></p>
+    </section>
+
+    <section>
+      <h2>Riproduzione</h2>
+      <div class="row">
+        <button class="btn" id="pause" type="button" aria-pressed="false">Pausa</button>
+        <label class="speed" for="speed"><span>Velocità</span><input id="speed" type="range" min="0.1" max="2" step="0.05" value="1"><span class="mono" id="speedVal">1.00×</span></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Vista</h2>
+      <div class="row">
+        <button class="btn" id="tGround" type="button" aria-pressed="true">Muovi sul terreno</button>
+        <button class="btn" id="tPrints" type="button" aria-pressed="true">Orme</button>
+        <button class="btn" id="tSkel" type="button" aria-pressed="false">Scheletro</button>
+        <button class="btn" id="resetView" type="button">Centra vista</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Dati del rig</h2>
+      <dl class="stats">
+        <dt>Ossa</dt><dd id="sBones">—</dd>
+        <dt>Vertici</dt><dd id="sVerts">—</dd>
+        <dt>Triangoli</dt><dd id="sTris">—</dd>
+        <dt>Clip</dt><dd id="sClips">—</dd>
+        <dt>Quadretto della griglia</dt><dd>0,1 unità</dd>
+      </dl>
+    </section>
+    <p class="note">Qui il modello usa texture 2K per caricarsi in fretta; il file completo ha le texture 4K originali.</p>
+  </aside>
+</div>
+
+<script>
+/* Runs even if the 3D library cannot be loaded: report the problem instead of an endless "Caricamento…" */
+(function () {
+  var say = function (m) { var t = document.getElementById('loadText'); var l = document.getElementById('loading'); if (t && l && !(window.viewer && window.viewer.ready)) { l.hidden = false; t.textContent = m; } };
+  window.addEventListener('error', function (e) { if (e.target && e.target.tagName === 'SCRIPT') say('Non riesco a caricare la libreria 3D (three.js). Controlla la connessione e ricarica la pagina.'); }, true);
+  setTimeout(function () { if (!window.__moduleStarted) say('La libreria 3D non si è avviata. Ricarica la pagina; se resta così, scrivimi cosa vedi.'); }, 15000);
+})();
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+window.__moduleStarted = true;
+const GLB_URL = 'web/cavaliere3d_web.gltf.json';   // glTF JSON + .jpg textures (same model as nomade3d_web.glb)
+const FPS = 30;
+const CELL = 0.1, TILE = 0.5;                      // grid cell and texture tile, in model units
+const $ = id => document.getElementById(id);
+const stageEl = $('stage');
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/* What each clip is, in the viewer's words.  Unknown clips are still listed under "Altre". */
+const CLIP_INFO = {
+  Idle:            { group: 'Base', name: 'Riposo', info: 'In piedi, respiro e piccoli spostamenti di peso.' },
+  Walk:            { group: 'Base', name: 'Camminata', info: 'Ciclo sul posto: il terreno scorre alla velocità giusta.' },
+  Turn360_Left:    { group: 'Giro completo su sé stesso', name: 'Giro a sinistra 360°', info: 'Un giro intero con i passi: parte e finisce nella posa di riposo.' },
+  Turn360_Right:   { group: 'Giro completo su sé stesso', name: 'Giro a destra 360°', info: 'Lo stesso giro, in senso orario.' },
+  Walk_RootMotion: { group: 'Varianti per motori di gioco', name: 'Camminata con root motion', info: 'Lo spostamento in avanti è dentro la clip (osso Root).' },
+  TurnLoop_Left:   { group: 'Varianti per motori di gioco', name: 'Giro continuo a sinistra', info: 'Passi sul posto senza rotazione: la rotazione la dà il gioco.' },
+  TurnLoop_Right:  { group: 'Varianti per motori di gioco', name: 'Giro continuo a destra', info: 'Come sopra, in senso orario.' },
+};
+const GROUP_ORDER = ['Base', 'Giro completo su sé stesso', 'Varianti per motori di gioco', 'Altre'];
+const num = (v, d = 2) => Number(v).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+/* ---------------------------------------------------------------- scene */
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stageEl.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 60);
+const HOME_POS = new THREE.Vector3(1.25, 0.95, 2.35), HOME_TARGET = new THREE.Vector3(0, 0.5, 0);
+camera.position.copy(HOME_POS);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(HOME_TARGET);
+controls.enableDamping = true; controls.enablePan = false;
+controls.minDistance = 0.8; controls.maxDistance = 7; controls.maxPolarAngle = Math.PI * 0.495;
+
+const sun = new THREE.DirectionalLight(0xffffff, 2.0);
+sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { left: -0.9, right: 0.9, top: 1.3, bottom: -0.5, near: 0.1, far: 8 });
+sun.shadow.bias = -0.0015; sun.shadow.normalBias = 0.01;
+const SUN_OFFSET = new THREE.Vector3(1.2, 3.2, 1.8);
+scene.add(sun, sun.target);
+
+// "mover" = what a game engine would move: the character lives inside it
+const mover = new THREE.Group();
+scene.add(mover);
+
+// ground: world-fixed grid drawn on a disc that follows the character (so it never ends)
+const gridCanvas = document.createElement('canvas'); gridCanvas.width = gridCanvas.height = 512;
+const gridTex = new THREE.CanvasTexture(gridCanvas);
+gridTex.wrapS = gridTex.wrapT = THREE.RepeatWrapping; gridTex.anisotropy = 8; gridTex.colorSpace = THREE.SRGBColorSpace;
+const GROUND = 16;
+gridTex.repeat.set(GROUND / TILE, GROUND / TILE);
+const fadeCanvas = document.createElement('canvas'); fadeCanvas.width = fadeCanvas.height = 256;
+{ const c = fadeCanvas.getContext('2d'), g = c.createRadialGradient(128, 128, 10, 128, 128, 128);
+  g.addColorStop(0, '#fff'); g.addColorStop(0.35, '#bbb'); g.addColorStop(1, '#000'); c.fillStyle = g; c.fillRect(0, 0, 256, 256); }
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(GROUND, GROUND),
+  new THREE.MeshBasicMaterial({ map: gridTex, alphaMap: new THREE.CanvasTexture(fadeCanvas), transparent: true, depthWrite: false, toneMapped: false }));
+ground.rotation.x = -Math.PI / 2; ground.renderOrder = -2;
+const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), new THREE.ShadowMaterial({ opacity: 0.3 }));
+shadowCatcher.rotation.x = -Math.PI / 2; shadowCatcher.position.y = 0.0015; shadowCatcher.receiveShadow = true; shadowCatcher.renderOrder = -1;
+scene.add(ground, shadowCatcher);
+function paintGrid() {
+  const c = gridCanvas.getContext('2d'), n = Math.round(TILE / CELL), s = 512 / n;
+  c.clearRect(0, 0, 512, 512);
+  c.strokeStyle = css('--grid') || '#8e8469'; c.globalAlpha = 0.55; c.lineWidth = 2;
+  for (let i = 0; i < n; i++) { c.beginPath(); c.moveTo(i * s, 0); c.lineTo(i * s, 512); c.moveTo(0, i * s); c.lineTo(512, i * s); c.stroke(); }
+  c.strokeStyle = css('--grid-strong') || '#5f573f'; c.globalAlpha = 0.8; c.lineWidth = 5;
+  c.beginPath(); c.moveTo(0, 0); c.lineTo(0, 512); c.moveTo(0, 0); c.lineTo(512, 0); c.stroke();
+  gridTex.needsUpdate = true;
+}
+// footprints
+const PRINT_MAX = 14, prints = [];
+const printGeo = new THREE.CircleGeometry(1, 24); printGeo.scale(0.036, 0.074, 1); printGeo.rotateX(-Math.PI / 2);
+const printColor = new THREE.Color();
+function applyTheme() {
+  paintGrid();
+  printColor.set(css('--print') || '#34479c');
+  for (const p of prints) p.material.color.copy(printColor);
+  skelHelper && skelHelper.material.color.copy(printColor);
+}
+let skelHelper = null;
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+applyTheme();
+
+function resize() {
+  const w = stageEl.clientWidth, h = stageEl.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.fov = w / h < 0.8 ? 42 : 32;       // portrait phones: widen so the whole figure fits
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stageEl);
+resize();
+renderer.render(scene, camera);
+
+/* ----------------------------------------------------------------- load */
+/* The glTF JSON carries its geometry buffer as base64.  Loaders normally fetch() that data: URI, which strict hosts
+   refuse, so the file is downloaded with one plain same-origin fetch, the buffer is decoded here and the model is
+   handed to the loader as an in-memory GLB.  Textures stay ordinary .jpg files next to it. */
+async function loadModel(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const total = Number(res.headers.get('content-length')) || 5.7e6;
+  const chunks = []; let got = 0;
+  if (res.body && res.body.getReader) {
+    const reader = res.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read(); if (done) break;
+      chunks.push(value); got += value.length;
+      $('loadBar').style.width = Math.min(100, Math.round(100 * got / total)) + '%';
+      $('loadText').textContent = `Caricamento del modello… ${num(got / 1e6, 1)} MB`;
+    }
+  } else { const b = new Uint8Array(await res.arrayBuffer()); chunks.push(b); got = b.length; }
+  const all = new Uint8Array(got); let o = 0; for (const c of chunks) { all.set(c, o); o += c.length; }
+  const json = JSON.parse(new TextDecoder().decode(all));
+  const b64 = json.buffers[0].uri.slice(json.buffers[0].uri.indexOf(',') + 1);
+  delete json.buffers[0].uri;
+  const raw = atob(b64), bin = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bin[i] = raw.charCodeAt(i);
+  let head = new TextEncoder().encode(JSON.stringify(json));
+  const pad = n => (4 - n % 4) % 4;
+  const jl = head.length + pad(head.length), bl = bin.length + pad(bin.length);
+  const glb = new Uint8Array(12 + 8 + jl + 8 + bl).fill(0x20, 20, 20 + jl), dv = new DataView(glb.buffer);
+  dv.setUint32(0, 0x46546C67, true); dv.setUint32(4, 2, true); dv.setUint32(8, glb.length, true);
+  dv.setUint32(12, jl, true); dv.setUint32(16, 0x4E4F534A, true); glb.set(head, 20);
+  dv.setUint32(20 + jl, bl, true); dv.setUint32(24 + jl, 0x004E4942, true); glb.set(bin, 28 + jl);
+  const loader = new GLTFLoader();
+  return await new Promise((ok, fail) => loader.parse(glb.buffer, url.slice(0, url.lastIndexOf('/') + 1), ok, fail));
+}
+const showError = msg => { $('loading').hidden = false; $('loadText').textContent = 'Non riesco a mostrare il modello: ' + msg; };
+addEventListener('error', e => showError(e.message || 'errore di script'));
+addEventListener('unhandledrejection', e => showError(String(e.reason && e.reason.message || e.reason)));
+let gltf;
+try {
+  gltf = await loadModel(GLB_URL);
+} catch (err) {
+  showError(String(err && err.message || err));
+  throw err;
+}
+mover.add(gltf.scene);
+let skinned = null, verts = 0, tris = 0;
+gltf.scene.traverse(o => {
+  if (!o.isMesh) return;
+  o.castShadow = true; o.frustumCulled = false;
+  verts += o.geometry.attributes.position.count;
+  tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+  if (o.isSkinnedMesh) skinned = o;
+});
+const bone = Object.fromEntries((skinned ? skinned.skeleton.bones : []).map(b => [b.name, b]));
+skelHelper = new THREE.SkeletonHelper(gltf.scene);
+skelHelper.material.depthTest = false; skelHelper.material.vertexColors = false; skelHelper.material.color.copy(printColor);
+skelHelper.renderOrder = 5; skelHelper.visible = false;
+scene.add(skelHelper);
+
+/* --------------------------------------------------------------- clips
+   Root motion is handled like a game engine does: the Root joint's own translation / yaw tracks are taken out of the
+   clip and applied to the "mover" instead, so blending between clips never drags the character around. */
+const mixer = new THREE.AnimationMixer(gltf.scene);
+const defs = gltf.parser.json.animations || [];
+const yawOf = q => 2 * Math.atan2(q[1], q[3]);
+const recs = gltf.animations.map((clip, i) => {
+  const extras = (defs[i] && defs[i].extras) || {};
+  const rootPos = clip.tracks.find(t => t.name === 'Root.position');
+  const rootRot = clip.tracks.find(t => t.name === 'Root.quaternion');
+  const moves = tr => { if (!tr) return false; const v = tr.values, n = tr.getValueSize(); for (let k = n; k < v.length; k++) if (Math.abs(v[k] - v[k % n]) > 1e-5) return true; return false; };
+  const posI = moves(rootPos) ? rootPos.createInterpolant() : null;
+  const rotI = moves(rootRot) ? rootRot.createInterpolant() : null;
+  const stripped = new THREE.AnimationClip(clip.name, clip.duration, clip.tracks.filter(t => !((t === rootPos && posI) || (t === rootRot && rotI))));
+  const meta = CLIP_INFO[clip.name] || { group: 'Altre', name: clip.name, info: '' };
+  const action = mixer.clipAction(stripped);
+  // unwrap yaw so that a 360° turn is a continuous angle
+  let yawKeys = null;
+  if (rotI) { const v = rootRot.values, n = v.length / 4; yawKeys = new Float64Array(n); let prev = 0;
+    for (let k = 0; k < n; k++) { let y = yawOf([v[k*4], v[k*4+1], v[k*4+2], v[k*4+3]]); while (y - prev > Math.PI) y -= 2 * Math.PI; while (y - prev < -Math.PI) y += 2 * Math.PI; yawKeys[k] = y; prev = y; } }
+  const yawAt = t => { const ts = rootRot.times; let k = 0; while (k < ts.length - 2 && ts[k + 1] < t) k++; const a = (t - ts[k]) / (ts[k + 1] - ts[k]); return yawKeys[k] + (yawKeys[k + 1] - yawKeys[k]) * Math.min(1, Math.max(0, a)); };
+  const rootAt = t => { const p = posI ? posI.evaluate(t) : [0, 0, 0]; return { x: p[0], z: p[2], yaw: rotI ? yawAt(t) : 0 }; };
+  return { id: clip.name, clip: stripped, action, extras, meta, dur: clip.duration, hasRoot: !!(posI || rotI), rootAt, prevT: 0,
+    speed: Math.abs(extras.speed || 0), turn: Math.abs(extras.turnRate || 0) * (/Right/.test(clip.name) ? -1 : 1),
+    steps: Array.isArray(extras.footsteps) ? extras.footsteps.filter(s => s && typeof s.t === 'number') : [] };
+});
+const recById = Object.fromEntries(recs.map(r => [r.id, r]));
+
+let current = null, paused = false, groundMotion = true, showPrints = true;
+function usageText(r) {
+  const e = r.extras, bits = [];
+  if (r.hasRoot && /Walk/.test(r.id)) bits.push(`<b>Root motion.</b> L'osso Root avanza di ${num(r.speed * r.dur, 3)} unità a ciclo (${num(r.speed, 3)} unità/s).`);
+  else if (r.hasRoot) bits.push(`<b>Root motion.</b> L'osso Root ruota di 360° nella clip; alla fine il personaggio guarda di nuovo avanti, quindi funziona anche senza root motion.`);
+  else if (r.speed) bits.push(`<b>Sul posto.</b> Nel gioco sposta il personaggio in avanti a <b>${num(r.speed, 3)} unità/s</b> (${num(r.speed / 0.979 * 1.78, 2)} m/s per un personaggio di 1,78 m): a quella velocità i piedi non scivolano.`);
+  else if (r.turn) bits.push(`<b>Sul posto.</b> Nel gioco ruota il personaggio di <b>${num(Math.abs(r.turn), 1)}°/s</b> mentre gira: i piedi restano fermi sul terreno.`);
+  else bits.push(`<b>Sul posto.</b> I piedi non si muovono.`);
+  if (e.loop === false) bits.push('Clip singola (non in loop).');
+  return bits.join(' ');
+}
+function play(id, fade = 0.3) {
+  const r = recById[id]; if (!r || r === current) return;
+  r.action.reset().setEffectiveWeight(1).play(); r.prevT = 0;
+  if (current) current.action.crossFadeTo(r.action, fade, false);
+  current = r;
+  document.querySelectorAll('.clip').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === id)));
+  $('hudClip').textContent = r.meta.name;
+  $('usage').innerHTML = usageText(r); $('usage').hidden = false;
+}
+
+/* ------------------------------------------------------------------- UI */
+const groupsEl = $('clipGroups');
+for (const g of GROUP_ORDER) {
+  const items = recs.filter(r => r.meta.group === g); if (!items.length) continue;
+  const h = document.createElement('h3'); h.textContent = g; groupsEl.append(h);
+  const box = document.createElement('div'); box.className = 'clips'; groupsEl.append(box);
+  for (const r of items) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'clip'; b.dataset.id = r.id; b.setAttribute('aria-pressed', 'false');
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = r.meta.name;
+    const d = document.createElement('span'); d.className = 'd'; d.textContent = `${num(r.dur, 2)} s · ${Math.round(r.dur * FPS)} f`;
+    const x = document.createElement('span'); x.className = 'x'; x.textContent = r.meta.info;
+    b.append(n, d, x); b.addEventListener('click', () => play(r.id)); box.append(b);
+  }
+}
+if (!recs.length) { const p = document.createElement('p'); p.className = 'note'; p.textContent = 'Questo file non contiene animazioni.'; groupsEl.append(p); }
+const speed = $('speed');
+speed.addEventListener('input', () => { $('speedVal').textContent = num(speed.value, 2) + '×'; });
+$('pause').addEventListener('click', e => { paused = !paused; e.currentTarget.setAttribute('aria-pressed', String(paused)); e.currentTarget.textContent = paused ? 'Riprendi' : 'Pausa'; });
+function toggle(id, fn) { const el = $(id); el.addEventListener('click', () => { const on = el.getAttribute('aria-pressed') !== 'true'; el.setAttribute('aria-pressed', String(on)); fn(on); }); }
+toggle('tGround', on => { groundMotion = on; });
+toggle('tPrints', on => { showPrints = on; for (const p of prints) p.visible = on; });
+toggle('tSkel', on => { skelHelper.visible = on; });
+$('resetView').addEventListener('click', () => { camera.position.copy(mover.position).add(HOME_POS); controls.target.copy(mover.position).add(HOME_TARGET); });
+$('sBones').textContent = skinned ? skinned.skeleton.bones.length : '0';
+$('sVerts').textContent = verts.toLocaleString('it-IT');
+$('sTris').textContent = Math.round(tris).toLocaleString('it-IT');
+$('sClips').textContent = recs.length;
+$('loading').hidden = true; $('hint').hidden = false;
+
+/* -------------------------------------------------------------- footprints */
+const vA = new THREE.Vector3(), vB = new THREE.Vector3();
+function dropPrint(foot) {
+  const f = bone[(foot === 'L' ? 'Left' : 'Right') + 'Foot'], t = bone[(foot === 'L' ? 'Left' : 'Right') + 'ToeBase'];
+  if (!f || !t) return;
+  f.getWorldPosition(vA); t.getWorldPosition(vB);
+  let m = prints.length >= PRINT_MAX ? prints.shift() : null;
+  if (!m) { m = new THREE.Mesh(printGeo, new THREE.MeshBasicMaterial({ color: printColor, transparent: true, depthWrite: false, toneMapped: false })); scene.add(m); }
+  m.position.set((vA.x + vB.x * 2) / 3, 0.003, (vA.z + vB.z * 2) / 3);
+  m.rotation.y = Math.atan2(vB.x - vA.x, vB.z - vA.z);
+  m.visible = showPrints; m.renderOrder = 0;
+  prints.push(m);
+  prints.forEach((p, i) => { p.material.opacity = 0.12 + 0.5 * (i + 1) / prints.length; });
+}
+
+/* ------------------------------------------------------------------ loop */
+const clock = new THREE.Clock();
+const lastMover = new THREE.Vector3();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.1) * (paused ? 0 : Number(speed.value));
+  if (dt > 0) {
+    const stepPrev = current ? current.action.time : 0;
+    mixer.update(dt);
+    for (const r of recs) {
+      const a = r.action, w = a.isRunning() ? a.getEffectiveWeight() : 0, t = a.time;
+      if (w > 0) {
+        if (r.hasRoot) {                                   // root motion taken from the clip itself
+          const cur = r.rootAt(t), prev = r.rootAt(r.prevT);
+          let dx = cur.x - prev.x, dz = cur.z - prev.z, dy = cur.yaw - prev.yaw;
+          if (t < r.prevT - 1e-6) { const end = r.rootAt(r.dur), st = r.rootAt(0); dx = end.x - prev.x + cur.x - st.x; dz = end.z - prev.z + cur.z - st.z; dy = end.yaw - prev.yaw + cur.yaw - st.yaw; }
+          mover.rotation.y += dy * w;
+          const c = Math.cos(mover.rotation.y), s = Math.sin(mover.rotation.y);
+          mover.position.x += (dx * c + dz * s) * w; mover.position.z += (-dx * s + dz * c) * w;
+        } else if (groundMotion) {                         // in-place clips: the "game" moves the character
+          if (r.turn) mover.rotation.y += THREE.MathUtils.degToRad(r.turn) * dt * w;
+          if (r.speed) { mover.position.x += Math.sin(mover.rotation.y) * r.speed * dt * w; mover.position.z += Math.cos(mover.rotation.y) * r.speed * dt * w; }
+        }
+      }
+      r.prevT = t;
+    }
+    mover.updateMatrixWorld(true);
+    if (current && current.steps.length && current.action.getEffectiveWeight() > 0.6) {
+      const t = current.action.time, wrapped = t < stepPrev - 1e-6;
+      for (const s of current.steps) if (wrapped ? (s.t > stepPrev || s.t <= t) : (s.t > stepPrev && s.t <= t)) dropPrint(s.foot);
+    }
+  }
+  // camera, light and ground follow the character; the grid pattern stays fixed to the world
+  const d = vA.copy(mover.position).sub(lastMover); lastMover.copy(mover.position);
+  camera.position.add(d); controls.target.add(d);
+  controls.update();
+  sun.position.copy(mover.position).add(SUN_OFFSET); sun.target.position.copy(mover.position);
+  ground.position.set(mover.position.x, 0, mover.position.z);
+  gridTex.offset.set(((mover.position.x / TILE) % 1 + 1) % 1, ((-mover.position.z / TILE) % 1 + 1) % 1);
+  shadowCatcher.position.x = mover.position.x; shadowCatcher.position.z = mover.position.z;
+  if (current) $('hudFrame').textContent = `frame ${String(Math.floor(current.action.time * FPS)).padStart(3, '0')} / ${Math.round(current.dur * FPS)}`;
+  renderer.render(scene, camera);
+}
+renderer.setAnimationLoop(frame);
+const first = recById[location.hash.slice(1)] ? location.hash.slice(1) : (recById.Idle ? 'Idle' : recs[0] && recs[0].id);
+if (first) play(first, 0);
+
+/* hooks for headless tests */
+window.viewer = { recs, play, mover, mixer, camera, controls,
+  step(dt) { clock.getDelta(); const s = speed.value; mixer.timeScale = 1; return dt; },
+  ready: true };
+</script>

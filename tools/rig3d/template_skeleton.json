@@ -152,5 +152,16 @@
    0.0,
    -0.068
   ]
+ },
+ "ref": {
+  "note": "measurements of the template character's body core (voxels deeper than 0.010 inside the solid), used by auto_skeleton.py",
+  "core_z": {
+   "0.507": 0.002,
+   "0.584": 0.011,
+   "0.656": -0.003,
+   "0.733": -0.024
+  },
+  "halfwidth_733": 0.156,
+  "crown": 0.972
  }
 }

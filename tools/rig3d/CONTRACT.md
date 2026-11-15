@@ -1,8 +1,9 @@
 # rig3d pipeline contract
 
 Quick start for a new character: `python3 tools/rig3d/pipeline.py <character dir>` (see `CLAUDE.md` at the repo root).
-`auto_skeleton.py` + `template_skeleton.json` give the first-guess skeleton; the six cloth joints
-(`Left/RightRibbon1-2`, `Sash1-2`) are OPTIONAL and every tool works without them.
+`auto_skeleton.py` + `template_skeleton.json` give the first-guess skeleton; the cloth joints
+(`Left/RightRibbon1-2`, `Sash1-2`, `Cape1-2` with their `_End` points) are OPTIONAL and every tool works without them.
+`slice_view.py` draws horizontal cross-sections with the joints marked.
 The rest of this file documents the first character (`character3d/`) and the shared conventions.
 
 Goal: turn the static Tripo mesh `character3d/src/desert_assassin_tripo.glb` (desert nomad / assassin, A-pose,

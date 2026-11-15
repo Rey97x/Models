@@ -52,12 +52,14 @@ def main():
         import animate
         clips = animate.build_clips(a.skeleton)
         want = a.clips.split(",") if a.clips else None
-        from cloth_fix import sash_follow_thigh
+        from cloth_fix import sash_follow_thigh, cape_follow_legs
         for c in clips:
             if want and c["name"] not in want:
                 continue
             if any(j["name"] == "Sash1" for j in joints):
                 sash_follow_thigh(c, joints)
+            if any(j["name"] == "Cape1" for j in joints):
+                cape_follow_legs(c, joints, ends, lms)
             g.add_animation(c["name"], c["tracks"], extras=c.get("extras"))
             print(f"clip {c['name']:<18} {c['duration']:.3f}s  tracks={len(c['tracks'])}  extras={c.get('extras')}")
     g.save(a.out)

@@ -740,7 +740,8 @@ def make_clip(rig, name, C, extras, loop, root_motion, cloth_cycle=None, cloth_i
     t = np.arange(n) / FPS
     tracks = {}
     for jn, _ in rig.hier:
-        q = continuous(lq[jn])
+        # joints without a solver (e.g. the cape chain) stay at rest here and are animated by cloth_fix afterwards
+        q = continuous(lq[jn]) if jn in lq else np.tile([0, 0, 0, 1.0], (n, 1))
         if jn == "Root" and not keep_root_yaw:
             q = np.tile([0, 0, 0, 1.0], (n, 1))
         elif loop and jn != "Root":

@@ -14,17 +14,18 @@ HIERARCHY = [
     ("LeftRibbon1", "LeftForeArm"), ("LeftRibbon2", "LeftRibbon1"),
     ("RightRibbon1", "RightForeArm"), ("RightRibbon2", "RightRibbon1"),
     ("Sash1", "Hips"), ("Sash2", "Sash1"),
+    ("Cape1", "Spine2"), ("Cape2", "Cape1"),      # cape / cloak hanging down the back from the shoulders
 ]
 JOINT_NAMES = [n for n, _ in HIERARCHY]
 # joints a character may not have (no hanging cloth): a skeleton.json without them is valid
-OPTIONAL = {"LeftRibbon1", "LeftRibbon2", "RightRibbon1", "RightRibbon2", "Sash1", "Sash2"}
+OPTIONAL = {"LeftRibbon1", "LeftRibbon2", "RightRibbon1", "RightRibbon2", "Sash1", "Sash2", "Cape1", "Cape2"}
 PARENT = dict(HIERARCHY)
 
 # leaf "tail" points: not joints, only used for bone segments (skin weights) and IK / foot geometry
 END_SITES = {
     "Head_End": "Head", "LeftHand_End": "LeftHand", "RightHand_End": "RightHand",
     "LeftToe_End": "LeftToeBase", "RightToe_End": "RightToeBase",
-    "LeftRibbon_End": "LeftRibbon2", "RightRibbon_End": "RightRibbon2", "Sash_End": "Sash2",
+    "LeftRibbon_End": "LeftRibbon2", "RightRibbon_End": "RightRibbon2", "Sash_End": "Sash2", "Cape_End": "Cape2",
 }
 # extra surface landmarks for the animator
 LANDMARKS = ["LeftHeel", "RightHeel"]

@@ -15,9 +15,12 @@ L'utente scrive in italiano, vuole risultati rapidi e i file da scaricare.
      `rig/skeleton.json`: spalle dentro la testa dell'omero, gomiti e ginocchia sulla piega, polsi nel punto più
      stretto, anche sotto i vestiti, piedi (tallone a terra, punta, pianta). La stima è stata provata solo sul primo
      personaggio: su un altro va sempre verificata.
-   - Se ha tessuti che pendono (nastri ai polsi, fascia in vita) aggiungi le catene facoltative
-     `Left/RightRibbon1`, `Ribbon2`, `Ribbon_End` e `Sash1`, `Sash2`, `Sash_End`; senza, quei tessuti seguono
-     braccio / bacino / coscia.
+   - Usa anche `python3 tools/rig3d/slice_view.py <src.glb> <skeleton.json> out.png`: sezioni orizzontali con le
+     articolazioni segnate, il modo più rapido per centrare le ossa e distinguere il corpo da mantelli e gonne.
+   - Se ha tessuti che pendono aggiungi a mano le catene facoltative (punti `...1`, `...2`, `..._End`):
+     `Left/RightRibbon` (strisce ai polsi), `Sash` (stoffa che pende dalla cintura; se è sulla linea centrale fa da
+     pannello frontale spinto dalla coscia più avanti), `Cape` (mantello sulla schiena, figlio di `Spine2`: misura la
+     linea centrale del mantello a x = 0). Senza catene quei tessuti seguono braccio / bacino / coscia.
 4. Rilancia lo stesso comando: pesi, GLB, versione web, FBX, visualizzatore e tavole in `checks/`. Tutti i controlli
    devono passare (validatore glTF, `audit_feet.py`, `check_anim.py`, import in Blender).
 5. **Guarda le tavole** `checks/*.png` (pesi, pose estreme, idle, camminata, giro): punte nella mesh, tessuti
@@ -30,7 +33,7 @@ Scheletro in stile Mixamo (23 ossa + 6 facoltative per i tessuti), pesi con bind
 30 fps: `Idle`, `Walk` (sul posto, `extras.speed`), `Walk_RootMotion`, `Turn360_Left/Right` (giro completo con passi,
 rotazione sull'osso Root), `TurnLoop_Left/Right` (sul posto, `extras.turnRate`). I piedi sono guidati da IK su impronte
 fisse: lo scivolamento in appoggio deve restare sotto 0,0005 unità.
-Dettagli tecnici e convenzioni: `tools/rig3d/CONTRACT.md`. Esempio completo: `character3d/` (README incluso).
+Dettagli tecnici e convenzioni: `tools/rig3d/CONTRACT.md`. Esempi completi: `character3d/` (nomade, con nastri e fascia) e `cavaliere3d/` (armatura, mantello, pannello frontale).
 
 ## Cose imparate (non ripetere gli errori)
 - Requisiti della mesh: guscio unico, posa ad A o T, guarda +Z, piedi su y = 0, alta circa 1 unità (le costanti delle
@@ -40,10 +43,18 @@ Dettagli tecnici e convenzioni: `tools/rig3d/CONTRACT.md`. Esempio completo: `ch
   `files: {"web/<nome>_web.gltf.json": ..., "web/<nome>_basecolor.jpg": ..., "web/<nome>_normal.jpg": ..., "web/<nome>_rm.jpg": ...}`.
 - Controllo dello scivolamento: il punto della pianta appartiene all'osso `ToeBase` (non a `Foot`) e si misura solo tra
   i fotogrammi chiave in cui il punto è a terra; atterraggio e stacco non sono scivolamento.
+- Mantelli: i bordi del mantello sono spesso fusi con fianchi e cosce. `skin_weights.py` assegna i vertici del
+  foglio libero (sottile) solo alle ossa `Cape`, altrimenti le gambe trascinano i bordi e si aprono buchi;
+  `cloth_fix.cape_follow_legs` lo fa pendere e lo spinge indietro con le gambe. Nei colpi singoli (Turn360) i
+  movimenti dinamici dei tessuti devono annullarsi agli estremi, o la posa non coincide con quella di Idle.
+- Elmi con ali / creste, mantelli e armature spostano il baricentro e l'altezza apparente: `auto_skeleton.py` usa
+  il nucleo del corpo (voxel profondi) per profondità, larghezza delle spalle e altezza di collo e testa. Provato su
+  due personaggi (nomade, cavaliere); ginocchia e caviglie vanno comunque ricontrollate (le ginocchiere spostano il centro).
 - Tessuti: niente collisori a capsula per la fascia (il pendolo passa dal lato sbagliato della coscia e ci resta);
   `cloth_fix.sash_follow_thigh` la spinge in avanti con la coscia sinistra.
 - Gruppi di agenti / workflow: lenti e soggetti al limite d'uso (una volta si sono fermati a metà). Lavora in linea
   con la pipeline; usa agenti solo se l'utente li chiede.
 - Dopo ogni modifica a `tools/rig3d/` verifica che `character3d` si ricostruisca identico:
   `python3 tools/rig3d/build.py --out /tmp/x.glb && cmp /tmp/x.glb character3d/nomade3d_rigged.glb`.
+- Test del visualizzatore di un altro personaggio: `CHAR_DIR=<nome> node tools/rig3d/test_viewer.cjs - /tmp/shots`.
 - Il personaggio 2D in `character/` è un rig a ritagli separato (`tools/build_rig.py`), non c'entra con `rig3d`.

@@ -33,7 +33,10 @@ SIGMA = 0.011        # blend falloff
 CLOTH_RADIUS = 0.014 # capsule radius for ribbon / sash bones
 CLOTH_GAIN = 1.8     # cloth distances are scaled so their influence dies quickly outside the cloth
 SMOOTH_ITERS, SMOOTH_LAMBDA = 14, 0.5
-CLOTH = ("Ribbon", "Sash")
+CLOTH = ("Ribbon", "Sash", "Cape")
+THIN_SHEET = 0.014   # a vertex is on a thin sheet if nothing within 0.012 of it is deeper than this inside the solid
+CAPE_REACH = 0.22    # ... and it belongs to the cape if it is this close (through the solid) to the cape joints
+CAPE_BAR = 0.07      # half width of the helper bars that spread the cape joints across the sheet
 
 
 def lerp(a, b, t):
@@ -77,6 +80,9 @@ def source_segments(pts):
         if s + "Ribbon1" in P:
             seg[s + "Ribbon1"] = [(P[s + "Ribbon1"], P[s + "Ribbon2"])]
             seg[s + "Ribbon2"] = [(P[s + "Ribbon2"], P[s + "Ribbon_End"])]
+    if "Cape1" in P:
+        for a, b, fr in (("Cape1", "Cape2", (0.4, 0.85)), ("Cape2", "Cape_End", (0.3, 0.7, 0.95))):
+            seg[a] = [(lerp(P[a], P[b], 0.15 if a == "Cape1" else 0.0), P[b])] + [bar(lerp(P[a], P[b], f), CAPE_BAR) for f in fr]
     if "Sash1" in P:
         seg["Sash1"] = [(P["Sash1"], P["Sash2"])]
         seg["Sash2"] = [(P["Sash2"], P["Sash_End"])]
@@ -161,6 +167,7 @@ def main():
         vnode[miss] = tree.query(P[miss])[1]
 
     names = [j["name"] for j in joints]
+    Draw = {}                                      # un-scaled distances of the cloth joints
     D = np.full((len(P), len(names)), np.inf, np.float32)
     for k, n in enumerate(names):
         if n == "Root":
@@ -177,6 +184,8 @@ def main():
         d = dijkstra(g, directed=False, indices=src, min_only=True)
         dv = d[vnode].astype(np.float32)
         D[:, k] = dv * (CLOTH_GAIN if cloth else 1.0)
+        if cloth:
+            Draw[n] = dv
         print(f"  {n:<14} capsule r={rad:.3f}  sources {len(src):>6}")
 
     # a vertex on one side of the body never follows the other side's limbs
@@ -189,6 +198,22 @@ def main():
     W = np.exp(-(D - D.min(1, keepdims=True)) / SIGMA).astype(np.float64)
     W[~np.isfinite(D)] = 0
     W /= W.sum(1, keepdims=True)
+
+    # A cape is a free-hanging thin sheet whose edges often lie against (and are fused with) hips and thighs.  Every
+    # vertex of the free sheet must follow the cape joints only, otherwise the legs drag its edges along.
+    cape = [k for k, n in enumerate(names) if n.startswith("Cape")]
+    if cape:
+        thick = ndi.maximum_filter(ndi.distance_transform_edt(solid) * H, size=2 * int(round(0.012 / H)) + 1)
+        vi = np.clip(np.floor((P - lo) / H).astype(int), 0, np.array(solid.shape) - 1)
+        thin = thick[vi[:, 0], vi[:, 1], vi[:, 2]] < THIN_SHEET
+        dc = np.minimum.reduce([Draw[names[k]] for k in cape])
+        other = [v for n, v in Draw.items() if not n.startswith("Cape")]
+        d_other = np.minimum.reduce(other) if other else np.full(len(P), np.inf)
+        free = thin & (dc < CAPE_REACH) & (dc <= d_other)
+        Wc = np.zeros_like(W[free])
+        Wc[:, cape] = np.exp(-(np.stack([Draw[names[k]][free] for k in cape], 1) - dc[free][:, None]) / SIGMA)
+        W[free] = Wc / Wc.sum(1, keepdims=True)
+        print(f"  cape: {int(free.sum())} free-sheet vertices follow the cape joints only")
 
     # Laplacian smoothing over the welded surface
     e = np.concatenate([T[:, [0, 1]], T[:, [1, 2]], T[:, [2, 0]]])
