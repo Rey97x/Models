@@ -15,6 +15,8 @@ Riggato con la pipeline `tools/rig3d/pipeline.py` (vedi `CLAUDE.md` nella radice
 Scheletro: le 23 ossa del corpo più due catene per i tessuti: `Cape1-2` (mantello sulla schiena) e `Sash1-2`
 (pannello di stoffa che pende dalla cintura, tra le gambe). Il mantello pende per gravità, segue la rotazione del busto
 e viene spinto indietro da ginocchia, polpacci e talloni; il pannello frontale viene spinto in avanti dalla coscia che avanza.
+Dove il mantello era fuso con le ginocchiere e i fianchi la mesh è stata tagliata (78 vertici duplicati), così il
+mantello scorre sulle gambe invece di stirarsi.
 Le ali dell'elmo, gli spallacci e le piastre dell'armatura seguono le ossa del corpo (nessun osso dedicato).
 
 Clip, velocità e uso sono gli stessi del primo personaggio: `Walk` a 0,674 unità/s, `TurnLoop` a 122,7 °/s.

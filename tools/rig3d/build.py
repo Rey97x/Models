@@ -39,6 +39,13 @@ def main():
         z = np.load(a.weights, allow_pickle=False)
         assert [str(n) for n in z["joint_names"]] == [j["name"] for j in joints], "weights.npz joints differ from skeleton.json"
         idx, w = z["joint_idx"], z["weights"]
+        if "dup_src" in z.files and len(z["dup_src"]):
+            # the skinning step cut the mesh (cape fused with legs): duplicated border vertices + new triangles
+            md, dup = g.mesh_data(), z["dup_src"].astype(np.int64)
+            cat = lambda a: None if a is None else np.concatenate([a, a[dup]])
+            g.set_mesh_arrays(cat(md["positions"]), cat(md.get("normals")), cat(md.get("uvs")), z["triangles"])
+            P = g.mesh_data()["positions"].astype(np.float64)
+            print(f"mesh cut: {len(dup)} vertices added")
         assert idx.shape == (len(P), 4) and w.shape == (len(P), 4)
         print("skin: weights.npz")
     else:

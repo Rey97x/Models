@@ -43,8 +43,14 @@ Dettagli tecnici e convenzioni: `tools/rig3d/CONTRACT.md`. Esempi completi: `cha
   `files: {"web/<nome>_web.gltf.json": ..., "web/<nome>_basecolor.jpg": ..., "web/<nome>_normal.jpg": ..., "web/<nome>_rm.jpg": ...}`.
 - Controllo dello scivolamento: il punto della pianta appartiene all'osso `ToeBase` (non a `Foot`) e si misura solo tra
   i fotogrammi chiave in cui il punto è a terra; atterraggio e stacco non sono scivolamento.
-- Mantelli: i bordi del mantello sono spesso fusi con fianchi e cosce. `skin_weights.py` assegna i vertici del
-  foglio libero (sottile) solo alle ossa `Cape`, altrimenti le gambe trascinano i bordi e si aprono buchi;
+- Mantelli: i bordi del mantello sono spesso fusi con fianchi, cosce e pezzi d'armatura (ginocchiere). Sintomo: nella
+  camminata un pezzo si allunga tra ginocchio e mantello. `skin_weights.py` (1) assegna i vertici del foglio libero
+  (sottile, del colore del mantello) solo alle ossa `Cape`, (2) lascia sul corpo i pezzi sottili d'armatura vicini,
+  riconosciuti dal colore della texture, (3) TAGLIA la mesh dove il mantello è fuso con gambe / fianchi / braccia
+  (vertici duplicati salvati in `weights.npz`, la mesh viene riscritta da `build.py`), così le due parti scorrono invece
+  di stirarsi; l'attacco a schiena e spalle resta saldato. Dopo il rig controlla SEMPRE la camminata con zoom su
+  ginocchia e orlo (`render.py --clip Walk --views ql,left,240:10 --zoom 2.4 --center=x,y,z`).
+  Il foglio libero segue solo le ossa `Cape`, altrimenti le gambe trascinano i bordi e si aprono buchi;
   `cloth_fix.cape_follow_legs` lo fa pendere e lo spinge indietro con le gambe. Nei colpi singoli (Turn360) i
   movimenti dinamici dei tessuti devono annullarsi agli estremi, o la posa non coincide con quella di Idle.
 - Elmi con ali / creste, mantelli e armature spostano il baricentro e l'altezza apparente: `auto_skeleton.py` usa

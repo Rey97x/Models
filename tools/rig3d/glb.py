@@ -114,6 +114,28 @@ class GLB:
             out["triangles"] = self.accessor(p["indices"]).astype(np.uint32).reshape(-1, 3)
         return out
 
+    def set_mesh_arrays(self, positions, normals, uvs, triangles, mesh=0, prim=0):
+        """Replace the geometry of one primitive (call BEFORE add_skin / add_animation: the mesh accessors must be the
+        only ones).  The old vertex / index data is dropped from the buffer, images are kept."""
+        js = self.js
+        p = js["meshes"][mesh]["primitives"][prim]
+        used = set(p["attributes"].values()) | {p["indices"]}
+        assert used == set(range(len(js["accessors"]))), "set_mesh_arrays: unexpected extra accessors"
+        imgs = [(im, bytes(self.bin[js["bufferViews"][im["bufferView"]].get("byteOffset", 0):
+                                    js["bufferViews"][im["bufferView"]].get("byteOffset", 0) + js["bufferViews"][im["bufferView"]]["byteLength"]]))
+                for im in js.get("images", []) if "bufferView" in im]
+        js["bufferViews"], js["accessors"], self.bin = [], [], bytearray()
+        at = {"POSITION": self.add_accessor(np.asarray(positions, np.float32), "VEC3", ARRAY_BUFFER, minmax=True)}
+        if normals is not None:
+            at["NORMAL"] = self.add_accessor(np.asarray(normals, np.float32), "VEC3", ARRAY_BUFFER)
+        if uvs is not None:
+            at["TEXCOORD_0"] = self.add_accessor(np.asarray(uvs, np.float32), "VEC2", ARRAY_BUFFER)
+        tri = np.asarray(triangles).reshape(-1)
+        p["attributes"] = at
+        p["indices"] = self.add_accessor(tri.astype(np.uint16 if len(positions) <= 65535 else np.uint32), "SCALAR", ELEMENT_ARRAY_BUFFER)
+        for im, data in imgs:
+            im["bufferView"] = self.add_view(data)
+
     def node_index(self, name):
         for i, n in enumerate(self.js["nodes"]):
             if n.get("name") == name:
