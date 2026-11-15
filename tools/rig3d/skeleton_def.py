@@ -16,6 +16,8 @@ HIERARCHY = [
     ("Sash1", "Hips"), ("Sash2", "Sash1"),
 ]
 JOINT_NAMES = [n for n, _ in HIERARCHY]
+# joints a character may not have (no hanging cloth): a skeleton.json without them is valid
+OPTIONAL = {"LeftRibbon1", "LeftRibbon2", "RightRibbon1", "RightRibbon2", "Sash1", "Sash2"}
 PARENT = dict(HIERARCHY)
 
 # leaf "tail" points: not joints, only used for bone segments (skin weights) and IK / foot geometry
@@ -35,7 +37,9 @@ def load_skeleton(path):
     import json
     d = json.load(open(path))
     pts = d["points"]
-    joints = [{"name": n, "parent": p, "head": pts[n]} for n, p in HIERARCHY]
+    missing = [n for n, _ in HIERARCHY if n not in pts and n not in OPTIONAL]
+    assert not missing, f"skeleton.json lacks required joints: {missing}"
+    joints = [{"name": n, "parent": p, "head": pts[n]} for n, p in HIERARCHY if n in pts]
     ends = {n: pts[n] for n in END_SITES if n in pts}
     lms = {n: pts[n] for n in LANDMARKS if n in pts}
     return joints, ends, lms

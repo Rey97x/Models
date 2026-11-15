@@ -10,12 +10,13 @@ PRIMARY_CHILD = {"Hips": "Spine", "Spine2": "Neck", "LeftForeArm": "LeftHand", "
 
 def bone_segments(points):
     """{joint: (head, tail)}; tail = primary child head or end site (Root gets a tiny stub)."""
+    hier = [(n, p) for n, p in HIERARCHY if n in points]
     kids = {}
-    for n, p in HIERARCHY:
+    for n, p in hier:
         kids.setdefault(p, []).append(n)
     end_of = {v: k for k, v in END_SITES.items()}
     segs = {}
-    for n, _ in HIERARCHY:
+    for n, _ in hier:
         h = np.asarray(points[n], float)
         if n in PRIMARY_CHILD:
             t = points[PRIMARY_CHILD[n]]
@@ -36,7 +37,7 @@ def seg_dist(P, a, b):
 
 
 def quick_weights(P, points, sigma=0.012):
-    names = [n for n, _ in HIERARCHY]
+    names = [n for n, _ in HIERARCHY if n in points]
     segs = bone_segments(points)
     D = np.full((len(P), len(names)), 1e9)
     for k, n in enumerate(names):

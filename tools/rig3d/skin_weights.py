@@ -74,10 +74,12 @@ def source_segments(pts):
         seg[s + "Foot"] = [(P[s + "Foot"], lerp(P[s + "Foot"], ball, 0.85)), (P[s + "Foot"], heel),
                            (heel, lerp(heel, ball, 0.8))]
         seg[s + "ToeBase"] = [(lerp(ball, P[s + "Toe_End"], 0.25), P[s + "Toe_End"])]
-        seg[s + "Ribbon1"] = [(P[s + "Ribbon1"], P[s + "Ribbon2"])]
-        seg[s + "Ribbon2"] = [(P[s + "Ribbon2"], P[s + "Ribbon_End"])]
-    seg["Sash1"] = [(P["Sash1"], P["Sash2"])]
-    seg["Sash2"] = [(P["Sash2"], P["Sash_End"])]
+        if s + "Ribbon1" in P:
+            seg[s + "Ribbon1"] = [(P[s + "Ribbon1"], P[s + "Ribbon2"])]
+            seg[s + "Ribbon2"] = [(P[s + "Ribbon2"], P[s + "Ribbon_End"])]
+    if "Sash1" in P:
+        seg["Sash1"] = [(P["Sash1"], P["Sash2"])]
+        seg["Sash2"] = [(P["Sash2"], P["Sash_End"])]
     return seg
 
 
@@ -158,7 +160,7 @@ def main():
     if miss.any():
         vnode[miss] = tree.query(P[miss])[1]
 
-    names = JOINT_NAMES
+    names = [j["name"] for j in joints]
     D = np.full((len(P), len(names)), np.inf, np.float32)
     for k, n in enumerate(names):
         if n == "Root":

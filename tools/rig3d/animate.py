@@ -287,7 +287,8 @@ class Rig:
         self.P = {j["name"]: np.array(j["head"], float) for j in joints}
         for k, v in list(ends.items()) + list(lms.items()):
             self.P[k] = np.array(v, float)
-        self.off = {n: self.P[n] - (self.P[p] if p else 0.0) for n, p in HIERARCHY}
+        self.hier = [(j["name"], j["parent"]) for j in joints]      # cloth joints are optional
+        self.off = {n: self.P[n] - (self.P[p] if p else 0.0) for n, p in self.hier}
         self.height = float(self.P["Head_End"][1]) if "Head_End" in self.P else float(self.P["Head"][1]) + 0.11
         self.leg = {s: LegGeom(self, s) for s in SIDES}
         self.arm = {s: ArmGeom(self, s) for s in SIDES}
@@ -549,7 +550,7 @@ def solve(rig, C):
 
     # ---- world transforms of every body joint (cloth joints excluded)
     Wp, Wq = {}, {}
-    for name, parent in HIERARCHY:
+    for name, parent in rig.hier:
         if name not in lq:
             continue
         if parent is None:
@@ -591,6 +592,8 @@ def bake_cloth(rig, sol, C, loop=False, cycle=None, init=None, settle=0, n_sub=6
     hip_seg = (P["LeftUpLeg"] + np.array([0, 0.07, 0]), P["LeftLeg"])
     chains = []
     for j1, j2, je, par in CHAINS:
+        if j1 not in P or j2 not in P:
+            continue
         if je not in P:
             P[je] = P[j2] + (P[j2] - P[j1])
         r1, r2 = P[j2] - P[j1], P[je] - P[j2]
@@ -736,7 +739,7 @@ def make_clip(rig, name, C, extras, loop, root_motion, cloth_cycle=None, cloth_i
     n = C["n"]
     t = np.arange(n) / FPS
     tracks = {}
-    for jn, _ in HIERARCHY:
+    for jn, _ in rig.hier:
         q = continuous(lq[jn])
         if jn == "Root" and not keep_root_yaw:
             q = np.tile([0, 0, 0, 1.0], (n, 1))

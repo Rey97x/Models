@@ -37,7 +37,7 @@ def main():
     joints, ends, lms = load_skeleton(a.skeleton)
     if os.path.exists(a.weights) and not a.quick_skin:
         z = np.load(a.weights, allow_pickle=False)
-        assert [str(n) for n in z["joint_names"]] == JOINT_NAMES, "weights.npz joint order differs from skeleton_def"
+        assert [str(n) for n in z["joint_names"]] == [j["name"] for j in joints], "weights.npz joints differ from skeleton.json"
         idx, w = z["joint_idx"], z["weights"]
         assert idx.shape == (len(P), 4) and w.shape == (len(P), 4)
         print("skin: weights.npz")
@@ -56,7 +56,8 @@ def main():
         for c in clips:
             if want and c["name"] not in want:
                 continue
-            sash_follow_thigh(c, joints)
+            if any(j["name"] == "Sash1" for j in joints):
+                sash_follow_thigh(c, joints)
             g.add_animation(c["name"], c["tracks"], extras=c.get("extras"))
             print(f"clip {c['name']:<18} {c['duration']:.3f}s  tracks={len(c['tracks'])}  extras={c.get('extras')}")
     g.save(a.out)

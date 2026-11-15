@@ -21,7 +21,7 @@ for im in js.get("images", []):
     v = im.pop("bufferView")
     img_views.add(v)
     ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}[im.pop("mimeType")]
-    name = "nomade3d_" + im.get("name", "tex").split("_")[-1] + ext
+    name = os.path.basename(src).split("_web")[0].split(".")[0] + "_" + im.get("name", "tex").split("_")[-1] + ext
     open(os.path.join(out, name), "wb").write(blob(views[v]))
     im["uri"] = name
 remap, new_views, binary = {}, [], bytearray()

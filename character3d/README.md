@@ -58,3 +58,5 @@ python3 tools/rig3d/blender_check.py character3d/nomade3d_rigged.glb --fbx chara
 python3 tools/rig3d/render.py character3d/nomade3d_rigged.glb walk.png --clip Walk --frames 8 --views left,front --grid
 ```
 Convenzioni e formati intermedi: `tools/rig3d/CONTRACT.md`.
+
+Per riggare un altro personaggio con la stessa pipeline: `python3 tools/rig3d/pipeline.py <cartella>` (vedi `CLAUDE.md`).
