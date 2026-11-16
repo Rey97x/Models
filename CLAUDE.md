@@ -22,7 +22,7 @@ L'utente scrive in italiano, vuole risultati rapidi e i file da scaricare.
      pannello frontale spinto dalla coscia più avanti), `Cape` (mantello sulla schiena, figlio di `Spine2`: misura la
      linea centrale del mantello a x = 0). Senza catene quei tessuti seguono braccio / bacino / coscia.
 4. Rilancia lo stesso comando: pesi, GLB, versione web, FBX, visualizzatore e tavole in `checks/`. Tutti i controlli
-   devono passare (validatore glTF, `audit_feet.py`, `check_anim.py`, import in Blender).
+   devono passare (validatore glTF, `audit_feet.py`, `check_anim.py`, `audit_pose.py`, import in Blender).
 5. **Guarda le tavole** `checks/*.png` (pesi, pose estreme, idle, camminata, giro): punte nella mesh, tessuti
    attraversati dalle gambe, braccia dentro il corpo. Solo dopo consegna.
 6. Consegna: invia `<nome>_rigged.glb` e `.fbx` con SendUserFile, pubblica `<nome>/index.html` come Artifact con i file
@@ -44,6 +44,20 @@ Aggiungi `<nome>/rig/character.json` e rilancia `pipeline.py`:
 - Le clip di combattimento hanno chiavi a 120 Hz: a 30 fps l'interpolazione tra le chiavi trascina i piedi di qualche
   millimetro nei movimenti esplosivi. `check_anim.py` le salta (conosce solo la locomozione); le verifica `audit_feet.py`.
 - Guarda sempre `checks/attack.png`, `dodge_back.png`, `dash_forward.png`: l'arma non deve attraversare corpo o mantello.
+- `audit_pose.py <glb> --skeleton <skeleton.json>` (fa parte della pipeline) misura quello che a occhio sfugge:
+  compenetrazioni (corpo approssimato con capsule misurate sulla mesh, lame comprese, rispetto alla posa di Idle),
+  angolo dei polsi, gomiti troppo chiusi, velocità e scatti delle articolazioni. La prima versione delle clip di
+  combattimento, scritta "a numeri" senza questo controllo, aveva polsi piegati di 108°, braccia 14 cm dentro il
+  busto e nastri che frustavano: l'utente l'ha rifiutata. Non consegnare clip nuove senza averlo fatto passare.
+- Regole che hanno reso naturali i colpi (tutte in `combat.py`): il fendente è un arco in un piano, la lama resta
+  nel piano e segue il braccio di un angolo di polso, il filo è sempre davanti; bacino, busto e braccio partono in
+  sequenza; la mano non passa mai vicino alla spalla (raggio minimo 0,56 braccia, altrimenti l'IK salta); un solo
+  riferimento per il gomito (`POLE`) per tutte le pose; polso limitato a 52° di flessione e 80° di torsione; presa e
+  lama spinte fuori dalle capsule del corpo; il gomito ruota verso l'esterno se entrerebbe nel busto.
+- Mani: `weapons.add_grip_joints` aggiunge `<Lato>Fingers1`, `Fingers2`, `Thumb` e una posa chiusa costante in ogni
+  clip (`"closeHand": false` in `character.json` per disattivarla). La presa sta appena dietro le nocche.
+- L'arma esce dal lato del pollice con `tilt` negativo (lama a circa 60° dalla linea dell'avambraccio): a braccio
+  disteso punta avanti e in basso. Chi ha un'arma tiene le braccia più aperte (`armSpread`, default 8°).
 
 ## Cosa produce
 Scheletro in stile Mixamo (23 ossa + 6 facoltative per i tessuti), pesi con binding geodetico su voxel, 7 clip a

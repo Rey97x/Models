@@ -1,4 +1,14 @@
 {
  "weightClass": "light",
- "weapons": [{"hand": "Right", "type": "dagger"}, {"hand": "Left", "type": "dagger"}]
+ "weapons": [
+  {
+   "hand": "Right",
+   "type": "dagger"
+  },
+  {
+   "hand": "Left",
+   "type": "dagger"
+  }
+ ],
+ "armSpread": 9.0
 }

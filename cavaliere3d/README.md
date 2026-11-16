@@ -32,5 +32,8 @@ Clip aggiunte (singole, partono e finiscono nella posa di `Idle`, chiavi a 120 H
 | `Dodge_Back` | Schivata all'indietro, spostamento sull'osso `Root` (`extras.distance`) |
 | `Dash_Forward` | Scatto in avanti, spostamento sull'osso `Root` |
 
-Profilo pesante: un fendente diagonale unico con lunga preparazione; schivata di 0,40 unità in 1,10 s e scatto di 0,48 unità in 1,00 s, sempre con un piede a terra.
-Le dita non sono articolate: la mano resta aperta attorno all'impugnatura.
+Profilo pesante: un fendente diagonale unico (1,60 s) con passo in avanti, caricamento sopra la spalla, rotazione di
+bacino, busto e braccio in sequenza e lungo recupero; schivata di 0,38 unità in 1,00 s e scatto di 0,46 unità in 0,95 s,
+a due passi, sempre con un piede a terra e la spada in guardia.
+La mano armata ha tre ossa di servizio (`Fingers1`, `Fingers2`, `Thumb`) e resta chiusa attorno all'impugnatura.
+Controlli: `audit_pose.py` non trova compenetrazioni tra spada, braccia e corpo in nessuna clip; polso entro 47°.

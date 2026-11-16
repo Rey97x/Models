@@ -7,6 +7,9 @@ Procedural weapons and hand sockets.
             around the grip.
   weapons : low-poly meshes built here (no external assets): "sword" (straight, cross-guard, pommel) and "dagger"
             (short curved blade).  Weapon space: origin = middle of the grip, +Y = towards the tip, +X = cutting edge.
+  grip    : the source meshes have no finger bones, so a hand that holds a weapon gets three helper joints
+            (<Side>Fingers1, <Side>Fingers2 = the four fingers bending together at the knuckles and at the middle
+            joint, <Side>Thumb) and a constant closed-hand pose in every clip, so the fingers wrap the grip.
 
 Each weapon is a separate mesh node parented to a `Weapon_<Side>` node under the hand joint, so an engine can hide or
 swap it.  Materials are plain PBR factors (steel, brass, leather): they survive FBX export.
@@ -22,11 +25,14 @@ MATERIALS = {
 }
 
 # dimensions in model units (1 unit ~ 1.8 m)
+KNUCKLE, MIDJOINT = 0.50, 0.74      # where the fingers bend, as fractions of the wrist -> fingertip length
+CURL = (78.0, 88.0)                 # closed-hand angles of the two finger joints (deg)
+
 SPECS = {
-    "sword":  dict(blade=0.46, width=0.030, thick=0.0075, curve=0.0, grip=0.085, grip_r=0.0085, guard=0.075,
-                   guard_t=0.011, pommel=0.014, metal="brass", grip_mat="leather", tip=0.16),
-    "dagger": dict(blade=0.150, width=0.024, thick=0.0055, curve=0.022, grip=0.062, grip_r=0.0075, guard=0.036,
-                   guard_t=0.008, pommel=0.010, metal="brass", grip_mat="wrap", tip=0.45),
+    "sword":  dict(blade=0.46, width=0.030, thick=0.0075, curve=0.0, grip=0.085, grip_r=0.0072, guard=0.075,
+                   guard_t=0.011, pommel=0.014, metal="brass", grip_mat="leather", tip=0.16, tilt=-28.0),
+    "dagger": dict(blade=0.150, width=0.024, thick=0.0055, curve=0.022, grip=0.062, grip_r=0.0066, guard=0.036,
+                   guard_t=0.008, pommel=0.010, metal="brass", grip_mat="wrap", tip=0.45, tilt=-18.0),
 }
 
 
@@ -138,15 +144,76 @@ def compute_socket(P, hand_w, joints, ends, side, kind, cfg=None):
     thumb = width if (np.percentile(proj, 97) > -np.percentile(proj, 3)) else -width
     if cfg.get("flip_thumb"):
         thumb = -thumb
-    tilt = np.radians(cfg.get("tilt", 12.0))
-    blade = np.cos(tilt) * thumb - np.sin(tilt) * f           # leaves on the thumb side, tilted back to the forearm
+    # tilt > 0 leans the blade back towards the forearm (hammer grip), < 0 forward towards the fingers: a sword is
+    # held with the blade about 60 degrees from the forearm line, so a hanging arm points it forward and down
+    tilt = np.radians(cfg.get("tilt", spec.get("tilt", 0.0)))
+    blade = np.cos(tilt) * thumb - np.sin(tilt) * f
     blade /= np.linalg.norm(blade)
+    # a hanging hand is usually turned a little inwards: without this the blade would point across the thigh.
+    # Hold it so that it points straight ahead (a touch outwards) in the bind pose.
+    if blade[0] * -sg > 0 and not cfg.get("keep_inward"):
+        blade[0] = sg * 0.06
+        blade /= np.linalg.norm(blade)
     edge = f - (f @ blade) * blade                            # the cutting edge faces the knuckles
     edge /= np.linalg.norm(edge)
     z = np.cross(edge, blade)
     half_thick = np.percentile(np.abs((palm - c) @ n), 85)
-    center = c + n * (half_thick + spec["grip_r"] * 0.9)
-    return dict(offset=center - W, rot=np.stack([edge, blade, z], 1), palm_normal=n, thumb=thumb)
+    # the grip lies across the palm just behind the knuckles, where the closed fingers wrap it
+    a_grip = KNUCKLE * L - (spec["grip_r"] + 0.007)
+    c_line = c - ((c - W) @ f) * f                               # palm centre line (without its position along f)
+    center = c_line + f * a_grip + n * (half_thick + spec["grip_r"])
+    half_width = float(np.percentile(np.abs((palm - c) @ width), 88))
+    return dict(offset=center - W, rot=np.stack([edge, blade, z], 1), palm_normal=n, thumb=thumb,
+                finger=f, hand_len=L, palm_line=c_line, half_width=half_width, wrist=W)
+
+
+def _smooth(x):
+    x = np.clip(x, 0, 1)
+    return x * x * (3 - 2 * x)
+
+
+def add_grip_joints(P, joints, idx, w, side, sk):
+    """Helper finger joints for a hand that holds a weapon.
+       Returns (new joints, idx (N,4), w (N,4), {joint: closed-hand local quaternion})."""
+    names = [j["name"] for j in joints]
+    f, n, th, L, W = sk["finger"], sk["palm_normal"], sk["thumb"], sk["hand_len"], sk["wrist"]
+    th = th - (th @ f) * f; th /= np.linalg.norm(th)
+    line = lambda a: sk["palm_line"] + f * a * L
+    new = [{"name": side + "Fingers1", "parent": side + "Hand", "head": line(KNUCKLE).tolist()},
+           {"name": side + "Fingers2", "parent": side + "Fingers1", "head": (line(MIDJOINT)).tolist()},
+           {"name": side + "Thumb", "parent": side + "Hand", "head": (line(0.16) + th * 0.75 * sk["half_width"]).tolist()}]
+    joints = joints + new
+    k1, k2, kt = len(names), len(names) + 1, len(names) + 2
+    hand = names.index(side + "Hand")
+    # dense weights of the affected vertices, split the hand's share
+    sel = np.nonzero((idx == hand).any(1) & (w[np.arange(len(w))[:, None], np.argmax(idx == hand, 1)[:, None]][:, 0] > 0))[0]
+    Wd = np.zeros((len(sel), len(joints)))
+    np.add.at(Wd, (np.arange(len(sel))[:, None], idx[sel]), w[sel])
+    v = P[sel]
+    a = ((v - W) @ f) / L
+    b = (v - sk["palm_line"]) @ th
+    share = Wd[:, hand].copy()
+    ut = _smooth((b - 0.85 * sk["half_width"]) / (0.3 * sk["half_width"])) * (a < 0.85)          # thumb: beyond the palm edge
+    wB = _smooth((a - (MIDJOINT - 0.05)) / 0.10) * (1 - ut)
+    wA = _smooth((a - (KNUCKLE - 0.06)) / 0.12) * (1 - ut) - wB
+    wA = np.clip(wA, 0, 1)
+    Wd[:, kt] = share * ut
+    Wd[:, k2] = share * wB
+    Wd[:, k1] = share * wA
+    Wd[:, hand] = share * np.clip(1 - ut - wA - wB, 0, 1)
+    order = np.argsort(-Wd, 1)[:, :4]
+    ww = np.take_along_axis(Wd, order, 1)
+    ww /= ww.sum(1, keepdims=True)
+    idx, w = idx.copy(), w.copy()
+    idx[sel], w[sel] = np.where(ww > 0, order, 0), ww
+    # closed hand: the fingers curl from the finger direction towards the palm normal
+    from glb import q_axis_angle, q_mul
+    curl = np.cross(f, n); curl /= np.linalg.norm(curl)
+    pose = {side + "Fingers1": q_axis_angle(curl, np.radians(CURL[0])),
+            side + "Fingers2": q_axis_angle(curl, np.radians(CURL[1])),
+            side + "Thumb": q_mul(q_axis_angle(np.cross(th, n) / np.linalg.norm(np.cross(th, n)), np.radians(48.0)),
+                                  q_axis_angle(curl, np.radians(22.0)))}
+    return joints, idx, w, pose
 
 
 def add_weapon(glb, hand_node, side, kind, socket):

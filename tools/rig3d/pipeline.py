@@ -13,7 +13,7 @@ Layout of a character directory
 Outputs
   <dir>/rig/weights.npz, <dir>/<name>_rigged.glb, <dir>/<name>_web.glb, <dir>/web/ (glTF JSON + jpg for the viewer),
   <dir>/<name>_rigged.fbx, <dir>/index.html (viewer), <dir>/checks/*.png (contact sheets to look at)
-Every check must pass (glTF validator, audit_feet, check_anim, Blender import); the script exits non-zero otherwise.
+Every check must pass (glTF validator, audit_feet, check_anim, audit_pose, Blender import); the script exits non-zero otherwise.
 """
 import argparse, glob, json, os, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +55,7 @@ def main():
     run("node", T("validate.cjs"), glb)
     run(py, T("audit_feet.py"), glb, "--skeleton", skel)
     run(py, T("check_anim.py"), glb, "--skeleton", skel)
+    run(py, T("audit_pose.py"), glb, "--skeleton", skel)       # self-penetration, wrists, elbows, smoothness
     run(py, T("make_web.py"), glb, web)
     run(py, T("make_gltf_json.py"), web, os.path.join(d, "web"))
     if not a.no_fbx:

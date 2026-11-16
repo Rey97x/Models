@@ -53,36 +53,52 @@ def main():
         pts = {j["name"]: j["head"] for j in joints}; pts.update(ends)
         idx, w = quick_weights(P, pts)
         print("skin: QUICK PREVIEW SKIN (not final)")
-    node_of = g.add_skin(joints, idx, w, name="NomadeArmature")
     # optional per-character configuration next to the skeleton: weapons, weight class (see CONTRACT.md)
     cfg_path = os.path.join(os.path.dirname(os.path.abspath(a.skeleton)), "character.json")
     cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
-    sockets = {}
+    sockets, grip_pose = {}, {}
+    body_joints = joints                                   # the skeleton the animation code knows
     if cfg.get("weapons"):
-        from weapons import compute_socket, add_weapon
+        from weapons import compute_socket, add_weapon, add_grip_joints
         names = [j["name"] for j in joints]
+        idx, w = np.asarray(idx).astype(np.int64), np.asarray(w, np.float64)
         for wp in cfg["weapons"]:
             side, kind = wp["hand"], wp["type"]
             hw = np.where(idx == names.index(side + "Hand"), w, 0).sum(1)
             sockets[side] = dict(compute_socket(P, hw, joints, ends, side, kind, wp), kind=kind)
-            add_weapon(g, node_of[side + "Hand"], side, kind, sockets[side])
-            print(f"weapon: {kind} in the {side.lower()} hand")
+            if wp.get("closeHand", cfg.get("closeHand", True)):
+                joints, idx, w, pose = add_grip_joints(P, joints, idx, w, side, sockets[side])
+                grip_pose.update(pose)
+    node_of = g.add_skin(joints, idx, w, name="NomadeArmature")
+    for side, sk in sockets.items():
+        add_weapon(g, node_of[side + "Hand"], side, sk["kind"], sk)
+        print(f"weapon: {sk['kind']} in the {side.lower()} hand" + (" (fingers closed around the grip)" if side + "Thumb" in grip_pose else ""))
     g.js["asset"]["generator"] = "Tripo + rig3d"
     if not a.no_anim and os.path.exists(os.path.join(HERE, "animate.py")):
         import animate
+        # a hand that holds a weapon hangs a little further from the thigh
+        animate.ARM["abd"] = 11.0 + float(cfg.get("armSpread", 8.0 if cfg.get("weapons") else 0.0))
         clips = animate.build_clips(a.skeleton)
         if cfg.get("weightClass") or cfg.get("weapons"):
             import combat
-            clips += combat.build_combat_clips(a.skeleton, cfg, sockets)
+            from audit_pose import capsules_from_arrays
+            names = [j["name"] for j in joints]
+            pts = {j["name"]: np.asarray(j["head"], float) for j in body_joints}
+            pts.update({k: np.asarray(v, float) for k, v in list(ends.items()) + list(lms.items())})
+            caps = capsules_from_arrays(P, idx[np.arange(len(P)), np.argmax(w, 1)], names, pts)
+            clips += combat.build_combat_clips(a.skeleton, cfg, sockets, caps)
         want = a.clips.split(",") if a.clips else None
         from cloth_fix import sash_follow_thigh, cape_follow_legs
         for c in clips:
             if want and c["name"] not in want:
                 continue
             if any(j["name"] == "Sash1" for j in joints):
-                sash_follow_thigh(c, joints)
+                sash_follow_thigh(c, body_joints)
             if any(j["name"] == "Cape1" for j in joints):
-                cape_follow_legs(c, joints, ends, lms)
+                cape_follow_legs(c, body_joints, ends, lms)
+            for jn, q in grip_pose.items():             # the hand stays closed around the grip in every clip
+                tt = c["tracks"]["Hips"]["t"]             # same keys as the rest of the clip
+                c["tracks"][jn] = {"t": tt, "rotation": np.tile(q, (len(tt), 1))}
             g.add_animation(c["name"], c["tracks"], extras=c.get("extras"))
             print(f"clip {c['name']:<18} {c['duration']:.3f}s  tracks={len(c['tracks'])}  extras={c.get('extras')}")
     g.save(a.out)

@@ -71,5 +71,7 @@ Clip aggiunte (singole, partono e finiscono nella posa di `Idle`, chiavi a 120 H
 | `Dodge_Back` | Schivata all'indietro, spostamento sull'osso `Root` (`extras.distance`) |
 | `Dash_Forward` | Scatto in avanti, spostamento sull'osso `Root` |
 
-Profilo leggero: due fendenti rapidi alternati; schivata di 0,75 unità in 0,60 s e scatto di 0,85 unità in 0,57 s, con fase di volo.
-Le dita non sono articolate: la mano resta aperta attorno all'impugnatura.
+Profilo leggero: due fendenti rapidi alternati (1,05 s); schivata di 0,60 unità in 0,70 s e scatto di 0,72 unità in 0,63 s,
+con una breve fase di volo; durante schivata e scatto le mani portano i pugnali in guardia davanti al busto.
+Le mani armate hanno tre ossa di servizio (`Fingers1`, `Fingers2`, `Thumb`) e restano chiuse attorno all'impugnatura.
+Controlli: `audit_pose.py` non trova compenetrazioni tra armi, braccia e corpo in nessuna clip; polso entro 37°.
