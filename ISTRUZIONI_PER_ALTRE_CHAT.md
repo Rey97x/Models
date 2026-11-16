@@ -44,6 +44,14 @@ spostato prima.
 8. Consegna: inviami `<nome>_rigged.glb` e `<nome>_rigged.fbx` come file da scaricare, pubblica il visualizzatore
    `<nome>/index.html` con i file della cartella `<nome>/web/`, poi fai commit e push.
 
+## Armi e combattimento (facoltativo)
+Per dare un'arma al personaggio e aggiungere attacco e schivata, crea `<nome>/rig/character.json` e rilancia la pipeline:
+`{"weightClass": "heavy", "weapons": [{"hand": "Right", "type": "sword"}]}` per un personaggio pesante con spada, oppure
+`{"weightClass": "light", "weapons": [{"hand": "Right", "type": "dagger"}, {"hand": "Left", "type": "dagger"}]}`
+per uno leggero con due pugnali. Si aggiungono le clip `Attack`, `Dodge_Back` e `Dash_Forward`: il personaggio pesante
+attacca con un colpo unico e schiva corto e lento, quello leggero colpisce due volte e schiva lungo con un balzo.
+Controlla le tavole `checks/attack.png`, `dodge_back.png` e `dash_forward.png`.
+
 ## Cosa ottengo
 - Scheletro a 23 ossa con nomi in stile Mixamo, più le ossa dei tessuti se presenti.
 - 7 animazioni a 30 fps: `Idle`, `Walk` (sul posto, 0,674 unità/s), `Walk_RootMotion`, `Turn360_Left` e `Turn360_Right`

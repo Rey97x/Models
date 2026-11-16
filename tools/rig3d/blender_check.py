@@ -29,7 +29,9 @@ for m in meshes:
     nvg = len(m.vertex_groups)
     unweighted = sum(1 for v in m.data.vertices if not v.groups)
     print(f"mesh '{m.name}': {len(m.data.vertices)} verts, {len(m.data.polygons)} faces, vertex groups {nvg}, armature modifiers {len(mods)}, unweighted verts {unweighted}, dims {[round(d, 3) for d in m.dimensions]}")
-    if not mods or unweighted:
+    if m.parent_type == "BONE":                 # rigid attachment (weapon in a hand): no skin expected
+        print(f"   attached to bone '{m.parent_bone}'")
+    elif not mods or unweighted:
         ok = False
 print(f"actions: {len(bpy.data.actions)}")
 for act in bpy.data.actions:

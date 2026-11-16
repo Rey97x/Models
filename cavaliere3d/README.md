@@ -21,3 +21,16 @@ Le ali dell'elmo, gli spallacci e le piastre dell'armatura seguono le ossa del c
 
 Clip, velocità e uso sono gli stessi del primo personaggio: `Walk` a 0,674 unità/s, `TurnLoop` a 122,7 °/s.
 Scivolamento massimo dei piedi in appoggio: 0,0003 unità.
+
+## Armi e combattimento
+Configurazione in `rig/character.json`. Arma: una spada lunga nella mano destra (mesh separata sotto il nodo `Weapon_<lato>`, figlio dell'osso della mano).
+Clip aggiunte (singole, partono e finiscono nella posa di `Idle`, chiavi a 120 Hz):
+
+| Clip | Uso |
+|---|---|
+| `Attack` | Sul posto, con un passo dentro il colpo. `extras.hits` = istanti in cui il colpo va a segno |
+| `Dodge_Back` | Schivata all'indietro, spostamento sull'osso `Root` (`extras.distance`) |
+| `Dash_Forward` | Scatto in avanti, spostamento sull'osso `Root` |
+
+Profilo pesante: un fendente diagonale unico con lunga preparazione; schivata di 0,40 unità in 1,10 s e scatto di 0,48 unità in 1,00 s, sempre con un piede a terra.
+Le dita non sono articolate: la mano resta aperta attorno all'impugnatura.

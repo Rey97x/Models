@@ -553,6 +553,11 @@ def main():
     for c in sc.clips:
         if a.clip and c["name"] != a.clip:
             continue
+        if c["name"] not in want:
+            # this checker knows the locomotion clips only (30 fps, always a supporting foot); combat one-shots
+            # (120 Hz keys, flight phases, root travel) are verified by audit_feet.py
+            print(f"== {c['name']}: skipped (not a locomotion clip, see audit_feet.py)")
+            continue
         rep = check_clip(sc, c, feet, max(a.sub, 1), a.verbose, idle_pose=by_name.get("Idle"),
                          walk_ref=by_name.get("Walk") if c["name"] != "Walk" else by_name.get("Walk_RootMotion"))
         rep.show()

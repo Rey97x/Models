@@ -73,3 +73,12 @@ Left turn = counter-clockwise seen from above = positive yaw about +Y.
 - Sole points (heel landmark, ball, toe tip rigidly attached to Foot / ToeBase) never go below y = -0.001.
 - No knee pops: the leg never reaches full extension abruptly (IK reach ≤ ~0.995 of leg length, smooth knee angle).
 - Loops: pose at t = duration equals pose at t = 0 (≤ 1e-4), velocities continuous across the seam.
+
+## Weapons and combat clips (optional, driven by `<character>/rig/character.json`)
+`{"weightClass": "heavy" | "light", "weapons": [{"hand": "Right" | "Left", "type": "sword" | "dagger"}]}`
+- `weapons.py`: procedural meshes; weapon space = origin at the middle of the grip, +Y to the tip, +X = cutting edge.
+  Socket node `Weapon_<Side>` under the hand joint (not part of the skin), measured from the hand vertices.
+- `combat.py::build_combat_clips(skeleton_path, cfg, sockets)`: `Attack` (in place, `extras.hits`), `Dodge_Back`,
+  `Dash_Forward` (root motion along Z on `Root`, `extras.distance`, `extras.airborne`).  One-shots, first and last key
+  equal to Idle's first frame, keys at 120 Hz (`extras.fps`).  Same foot-contact criteria as the other clips,
+  verified by `audit_feet.py` (it follows each clip's own key rate).

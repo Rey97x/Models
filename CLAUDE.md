@@ -28,6 +28,23 @@ L'utente scrive in italiano, vuole risultati rapidi e i file da scaricare.
 6. Consegna: invia `<nome>_rigged.glb` e `.fbx` con SendUserFile, pubblica `<nome>/index.html` come Artifact con i file
    di `<nome>/web/` (vedi sotto), commit e push sul ramo della sessione.
 
+## Armi e animazioni di combattimento
+Aggiungi `<nome>/rig/character.json` e rilancia `pipeline.py`:
+`{"weightClass": "heavy" | "light", "weapons": [{"hand": "Right", "type": "sword" | "dagger"}, ...]}`
+- `weapons.py` costruisce le armi (nessun file esterno) e misura sulla mesh dove stanno in mano: nodo
+  `Weapon_<Left|Right>` figlio dell'osso della mano, quindi si possono nascondere o sostituire nel motore di gioco.
+  Opzioni per arma: `tilt` (gradi), `flip_palm`, `flip_thumb` se l'arma esce dal lato sbagliato. Le dita non si
+  chiudono (non hanno ossa): la mano resta aperta attorno all'impugnatura.
+- `combat.py` aggiunge tre clip singole che partono e finiscono nella posa di `Idle`: `Attack` (sul posto, con un
+  passo dentro il colpo; `extras.hits` = istanti del colpo), `Dodge_Back` e `Dash_Forward` (root motion su `Root`;
+  `extras.distance`). I parametri stanno in `PRESETS`: pesante = un fendente unico con lunga preparazione, schivata
+  corta a due passi, sempre un piede a terra; leggero = due fendenti rapidi alternati, schivata lunga con fase di volo.
+  Il movimento dell'arma è scritto in "spazio del colpo" (posizione dell'impugnatura in lunghezze di braccio dalla
+  spalla, direzione di lama e filo) e risolto con IK del braccio.
+- Le clip di combattimento hanno chiavi a 120 Hz: a 30 fps l'interpolazione tra le chiavi trascina i piedi di qualche
+  millimetro nei movimenti esplosivi. `check_anim.py` le salta (conosce solo la locomozione); le verifica `audit_feet.py`.
+- Guarda sempre `checks/attack.png`, `dodge_back.png`, `dash_forward.png`: l'arma non deve attraversare corpo o mantello.
+
 ## Cosa produce
 Scheletro in stile Mixamo (23 ossa + 6 facoltative per i tessuti), pesi con binding geodetico su voxel, 7 clip a
 30 fps: `Idle`, `Walk` (sul posto, `extras.speed`), `Walk_RootMotion`, `Turn360_Left/Right` (giro completo con passi,
@@ -60,7 +77,8 @@ Dettagli tecnici e convenzioni: `tools/rig3d/CONTRACT.md`. Esempi completi: `cha
   `cloth_fix.sash_follow_thigh` la spinge in avanti con la coscia sinistra.
 - Gruppi di agenti / workflow: lenti e soggetti al limite d'uso (una volta si sono fermati a metà). Lavora in linea
   con la pipeline; usa agenti solo se l'utente li chiede.
-- Dopo ogni modifica a `tools/rig3d/` verifica che `character3d` si ricostruisca identico:
+- Dopo ogni modifica a `tools/rig3d/` verifica che `character3d` si ricostruisca identico (il file di riferimento è
+  quello committato, armi e clip di combattimento incluse):
   `python3 tools/rig3d/build.py --out /tmp/x.glb && cmp /tmp/x.glb character3d/nomade3d_rigged.glb`.
 - Test del visualizzatore di un altro personaggio: `CHAR_DIR=<nome> node tools/rig3d/test_viewer.cjs - /tmp/shots`.
 - Il personaggio 2D in `character/` è un rig a ritagli separato (`tools/build_rig.py`), non c'entra con `rig3d`.

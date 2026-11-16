@@ -12,7 +12,7 @@ Assemble the rigged + animated GLB.
   animations   : tools/rig3d/animate.py  ->  build_clips(skeleton_path) returns a list of
                  {"name", "duration", "tracks": {joint: {"t", "rotation"?, "translation"?}}, "extras": {...}}
 """
-import argparse, os, sys
+import argparse, json, os, sys
 import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
@@ -53,11 +53,27 @@ def main():
         pts = {j["name"]: j["head"] for j in joints}; pts.update(ends)
         idx, w = quick_weights(P, pts)
         print("skin: QUICK PREVIEW SKIN (not final)")
-    g.add_skin(joints, idx, w, name="NomadeArmature")
+    node_of = g.add_skin(joints, idx, w, name="NomadeArmature")
+    # optional per-character configuration next to the skeleton: weapons, weight class (see CONTRACT.md)
+    cfg_path = os.path.join(os.path.dirname(os.path.abspath(a.skeleton)), "character.json")
+    cfg = json.load(open(cfg_path)) if os.path.exists(cfg_path) else {}
+    sockets = {}
+    if cfg.get("weapons"):
+        from weapons import compute_socket, add_weapon
+        names = [j["name"] for j in joints]
+        for wp in cfg["weapons"]:
+            side, kind = wp["hand"], wp["type"]
+            hw = np.where(idx == names.index(side + "Hand"), w, 0).sum(1)
+            sockets[side] = dict(compute_socket(P, hw, joints, ends, side, kind, wp), kind=kind)
+            add_weapon(g, node_of[side + "Hand"], side, kind, sockets[side])
+            print(f"weapon: {kind} in the {side.lower()} hand")
     g.js["asset"]["generator"] = "Tripo + rig3d"
     if not a.no_anim and os.path.exists(os.path.join(HERE, "animate.py")):
         import animate
         clips = animate.build_clips(a.skeleton)
+        if cfg.get("weightClass") or cfg.get("weapons"):
+            import combat
+            clips += combat.build_combat_clips(a.skeleton, cfg, sockets)
         want = a.clips.split(",") if a.clips else None
         from cloth_fix import sash_follow_thigh, cape_follow_legs
         for c in clips:

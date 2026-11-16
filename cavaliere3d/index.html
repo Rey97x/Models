@@ -194,8 +194,11 @@ const CLIP_INFO = {
   Walk_RootMotion: { group: 'Varianti per motori di gioco', name: 'Camminata con root motion', info: 'Lo spostamento in avanti è dentro la clip (osso Root).' },
   TurnLoop_Left:   { group: 'Varianti per motori di gioco', name: 'Giro continuo a sinistra', info: 'Passi sul posto senza rotazione: la rotazione la dà il gioco.' },
   TurnLoop_Right:  { group: 'Varianti per motori di gioco', name: 'Giro continuo a destra', info: 'Come sopra, in senso orario.' },
+  Attack:          { group: 'Combattimento', name: 'Attacco', info: 'Colpo con l\'arma: un passo dentro il colpo e ritorno in guardia.' },
+  Dodge_Back:      { group: 'Combattimento', name: 'Schivata indietro', info: 'Scatto all\'indietro per uscire dalla portata.' },
+  Dash_Forward:    { group: 'Combattimento', name: 'Scatto in avanti', info: 'Scatto in avanti per chiudere la distanza.' },
 };
-const GROUP_ORDER = ['Base', 'Giro completo su sé stesso', 'Varianti per motori di gioco', 'Altre'];
+const GROUP_ORDER = ['Base', 'Combattimento', 'Giro completo su sé stesso', 'Varianti per motori di gioco', 'Altre'];
 const num = (v, d = 2) => Number(v).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d });
 
 /* ---------------------------------------------------------------- scene */
@@ -367,7 +370,9 @@ let current = null, paused = false, groundMotion = true, showPrints = true;
 function usageText(r) {
   const e = r.extras, bits = [];
   if (r.hasRoot && /Walk/.test(r.id)) bits.push(`<b>Root motion.</b> L'osso Root avanza di ${num(r.speed * r.dur, 3)} unità a ciclo (${num(r.speed, 3)} unità/s).`);
-  else if (r.hasRoot) bits.push(`<b>Root motion.</b> L'osso Root ruota di 360° nella clip; alla fine il personaggio guarda di nuovo avanti, quindi funziona anche senza root motion.`);
+  else if (r.hasRoot && /Turn360/.test(r.id)) bits.push(`<b>Root motion.</b> L'osso Root ruota di 360° nella clip; alla fine il personaggio guarda di nuovo avanti, quindi funziona anche senza root motion.`);
+  else if (r.hasRoot) bits.push(`<b>Root motion.</b> L'osso Root si sposta di ${num(e.distance || 0, 2)} unità ${e.direction === 'back' ? 'all\'indietro' : 'in avanti'} in ${num(r.dur, 2)} s${e.airborne ? ', con una fase di volo' : ', sempre con un piede a terra'}.`);
+  else if (Array.isArray(e.hits)) bits.push(`<b>Sul posto.</b> Il colpo va a segno a ${e.hits.map(h => num(h, 2) + ' s').join(' e ')}: usa questi istanti per applicare il danno.`);
   else if (r.speed) bits.push(`<b>Sul posto.</b> Nel gioco sposta il personaggio in avanti a <b>${num(r.speed, 3)} unità/s</b> (${num(r.speed / 0.979 * 1.78, 2)} m/s per un personaggio di 1,78 m): a quella velocità i piedi non scivolano.`);
   else if (r.turn) bits.push(`<b>Sul posto.</b> Nel gioco ruota il personaggio di <b>${num(Math.abs(r.turn), 1)}°/s</b> mentre gira: i piedi restano fermi sul terreno.`);
   else bits.push(`<b>Sul posto.</b> I piedi non si muovono.`);

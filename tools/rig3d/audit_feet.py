@@ -21,6 +21,7 @@ sys.path.insert(0, HERE)
 from glb import GLB, q_mul, q_rotate, q_axis_angle
 
 CONTACT_Y = 0.0008     # a sole point this close to the ground (about 1.5 mm on a real person) counts as touching
+LIFT_SPEED = 0.03      # a grounded point moving vertically faster than this (5 cm/s real) is landing or lifting off
 SLIDE_TOL = 0.0005     # CONTRACT.md
 PEN_TOL = -0.001
 STRETCH_TOL = 0.995
@@ -106,7 +107,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("glb")
     ap.add_argument("--skeleton", default=os.path.join(HERE, "..", "..", "character3d", "rig", "skeleton.json"))
-    ap.add_argument("--hz", type=float, default=120)
+    ap.add_argument("--hz", type=float, default=240)
     ap.add_argument("--verbose", action="store_true")
     a = ap.parse_args()
     import json
@@ -126,8 +127,11 @@ def main():
     for name, clip in P.clips.items():
         ex = clip["extras"] or {}
         dur = clip["dur"]
-        step = max(1, int(round(a.hz / 30)))
-        n = int(round(dur * 30)) * step + 1
+        # the clip's own key rate (30 fps for the locomotion clips, 120 for the combat one-shots)
+        kt = max((t for t, _ in clip["ch"].values()), key=len)
+        kfps = int(round(1.0 / np.median(np.diff(kt)))) if len(kt) > 1 else 30
+        step = max(2, int(round(a.hz / kfps)))
+        n = int(round(dur * kfps)) * step + 1
         ts = np.linspace(0, dur, n)
         speed = float(ex.get("speed", 0) or 0) if not ex.get("rootMotion") else 0.0
         turn = float(ex.get("turnRate", 0) or 0) if not ex.get("rootMotion") else 0.0
@@ -156,11 +160,14 @@ def main():
             for lab in tracks[s]:
                 tr = tracks[s][lab]
                 miny = min(miny, tr[:, 1].min())
-                # a point is planted on the 30 fps KEYS where it lies on the ground; its drift is measured over all
+                # a point is planted on the KEYS where it lies on the ground; its drift is measured over all
                 # samples (also between keys) from the first to the last planted key of each contact.  The landing
                 # and lift-off transitions (the key interval before / after) are motion, not sliding.
                 keys = np.arange(0, n, step)
-                on = tr[keys, 1] < CONTACT_Y
+                yk = tr[keys, 1]
+                dy = np.abs(np.diff(yk)) * kfps                       # vertical speed between keys (units/s)
+                still = np.concatenate([[True], dy < LIFT_SPEED]) & np.concatenate([dy < LIFT_SPEED, [True]])
+                on = (yk < CONTACT_Y) & still                         # on the ground and neither landing nor lifting
                 i = 0
                 while i < len(keys):
                     if not on[i]:
@@ -185,7 +192,7 @@ def main():
                 seam = max(seam, 1 - abs(float(np.dot(r0, r1))), float(np.abs(t0 - t1).max()) if P.nodes[j].get("name") != "Root" else 0)
         yaw = np.unwrap(root[:, 2])
         kmin = min(knee[s].min() for s in sole); kmax = max(knee[s].max() for s in sole)
-        kjump = max(np.abs(np.diff(knee[s])).max() * step for s in sole)       # deg per 1/30 s
+        kjump = max(np.abs(np.diff(knee[s])).max() * step * kfps / 30 for s in sole)       # deg per 1/30 s
         smax = max(stretch[s].max() for s in sole)
         rm = f"dz={root[-1,1]-root[0,1]:+.4f} dx={root[-1,0]-root[0,0]:+.4f} yaw={np.degrees(yaw[-1]-yaw[0]):+.1f}deg"
         extra = (f" | in-place speed {speed:.4f}/s" if speed else "") + (f" | in-place turn {turn:+.1f} deg/s" if turn else "")

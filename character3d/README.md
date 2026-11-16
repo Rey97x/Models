@@ -60,3 +60,16 @@ python3 tools/rig3d/render.py character3d/nomade3d_rigged.glb walk.png --clip Wa
 Convenzioni e formati intermedi: `tools/rig3d/CONTRACT.md`.
 
 Per riggare un altro personaggio con la stessa pipeline: `python3 tools/rig3d/pipeline.py <cartella>` (vedi `CLAUDE.md`).
+
+## Armi e combattimento
+Configurazione in `rig/character.json`. Arma: due pugnali curvi, uno per mano (mesh separata sotto il nodo `Weapon_<lato>`, figlio dell'osso della mano).
+Clip aggiunte (singole, partono e finiscono nella posa di `Idle`, chiavi a 120 Hz):
+
+| Clip | Uso |
+|---|---|
+| `Attack` | Sul posto, con un passo dentro il colpo. `extras.hits` = istanti in cui il colpo va a segno |
+| `Dodge_Back` | Schivata all'indietro, spostamento sull'osso `Root` (`extras.distance`) |
+| `Dash_Forward` | Scatto in avanti, spostamento sull'osso `Root` |
+
+Profilo leggero: due fendenti rapidi alternati; schivata di 0,75 unità in 0,60 s e scatto di 0,85 unità in 0,57 s, con fase di volo.
+Le dita non sono articolate: la mano resta aperta attorno all'impugnatura.

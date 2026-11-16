@@ -6,6 +6,8 @@ Rig + animate one character with a single command.
 
 Layout of a character directory
   <dir>/src/<model>.glb        static source mesh (A/T-pose, faces +Z, feet on y=0, ~1 unit tall)
+  <dir>/rig/character.json     optional: {"weightClass": "heavy"|"light", "weapons": [{"hand": "Right", "type": "sword"|"dagger"}]}
+                               adds the weapons and the combat clips (Attack, Dodge_Back, Dash_Forward)
   <dir>/rig/skeleton.json      joint positions.  If it is missing, a first guess is written (auto_skeleton.py) together
                                with an overlay image, and the pipeline STOPS so the skeleton can be checked and fixed.
 Outputs
@@ -77,6 +79,13 @@ def main():
         run(py, R, glb, os.path.join(c, "idle.png"), "--clip", "Idle", "--frames", "4", "--views", "front,left", "--cell", "320x420")
         run(py, R, glb, os.path.join(c, "walk.png"), "--clip", "Walk", "--frames", "8", "--views", "left,front", "--grid", "--cell", "300x400")
         run(py, R, glb, os.path.join(c, "turn360.png"), "--clip", "Turn360_Left", "--frames", "10", "--views", "q,top", "--grid", "--cell", "260x340")
+    if not a.no_sheets and os.path.exists(os.path.join(d, "rig", "character.json")):
+        c, R = os.path.join(d, "checks"), T("render.py")
+        run(py, R, glb, os.path.join(c, "attack.png"), "--clip", "Attack", "--frames", "10", "--views", "q,left", "--cell", "300x400")
+        run(py, R, glb, os.path.join(c, "dodge_back.png"), "--clip", "Dodge_Back", "--frames", "8", "--views", "left", "--grid",
+            "--zoom", "0.62", "--center=0,0.45,-0.3", "--cell", "330x280")
+        run(py, R, glb, os.path.join(c, "dash_forward.png"), "--clip", "Dash_Forward", "--frames", "8", "--views", "left", "--grid",
+            "--zoom", "0.62", "--center=0,0.45,0.3", "--cell", "330x280")
     print(f"\nDONE: {glb}\nNow LOOK at {d}/checks/*.png before shipping (skin spikes, cloth through legs, arms through body).")
 
 
